@@ -1,0 +1,18 @@
+services:
+  mutr-db:
+    image: postgres:17-alpine
+    container_name: mutr-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: mutr
+      POSTGRES_USER: mutr_admin
+      POSTGRES_PASSWORD: 1234
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - mutr-network
+
+networks:
+  mutr-network:
+    driver: bridge
