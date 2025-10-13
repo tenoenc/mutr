@@ -1,0 +1,6 @@
+dependencies {
+    api project(':mutr-core')
+
+    // 비동기 통신을 위한 WebClient(WebFlux)
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+}
