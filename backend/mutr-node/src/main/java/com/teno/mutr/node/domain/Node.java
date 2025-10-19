@@ -6,6 +6,7 @@ import com.teno.mutr.core.domain.Coordinate;
 import com.teno.mutr.core.domain.MutationInfo;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -56,6 +57,7 @@ public class Node extends BaseTimeEntity {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> metadata = new HashMap<>();
 
+    @Builder
     public Node(Node parent, Node root, User user, String content, MutationInfo mutationInfo, Coordinate coordinate,
                 Boolean isAiGenerated) {
         this.parent = parent;
