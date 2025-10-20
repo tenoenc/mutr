@@ -1,6 +1,6 @@
-package com.teno.mutr.node.repository;
+package com.teno.mutr.node.domain.repository;
 
-import com.teno.mutr.node.domain.Node;
+import com.teno.mutr.node.domain.entity.Node;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,11 +1,11 @@
 package com.teno.mutr.app.test;
 
-import com.teno.mutr.auth.domain.User;
-import com.teno.mutr.auth.repository.UserRepository;
-import com.teno.mutr.core.domain.Coordinate;
-import com.teno.mutr.core.domain.MutationInfo;
-import com.teno.mutr.node.domain.Node;
-import com.teno.mutr.node.repository.NodeRepository;
+import com.teno.mutr.auth.domain.entity.User;
+import com.teno.mutr.auth.domain.repository.UserRepository;
+import com.teno.mutr.node.domain.vo.Coordinate;
+import com.teno.mutr.node.domain.vo.MutationInfo;
+import com.teno.mutr.node.domain.entity.Node;
+import com.teno.mutr.node.domain.repository.NodeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
