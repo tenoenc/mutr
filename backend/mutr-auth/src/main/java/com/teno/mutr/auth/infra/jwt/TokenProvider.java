@@ -1,5 +1,8 @@
 package com.teno.mutr.auth.infra.jwt;
 
+import com.teno.mutr.auth.domain.entity.User;
+import com.teno.mutr.auth.domain.repository.UserRepository;
+import com.teno.mutr.auth.web.dto.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -9,14 +12,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class TokenProvider {
@@ -28,6 +32,12 @@ public class TokenProvider {
     private long tokenValidityInMilliseconds;
 
     private SecretKey key;
+
+    private final UserRepository userRepository;
+
+    public TokenProvider(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @PostConstruct
     protected void init() {
@@ -55,11 +65,16 @@ public class TokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
 
-        List<SimpleGrantedAuthority> authorities = Collections.singletonList(
-                new SimpleGrantedAuthority(claims.get("auth").toString())
-        );
+        List<SimpleGrantedAuthority> authorities =
+                Arrays.stream(claims.get("auth").toString().split(","))
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toList());
 
-        User principal = new User(claims.getSubject(), "", authorities);
+        String oauthId = claims.getSubject();
+        User user = userRepository.findByOauthId(oauthId)
+                .orElseThrow(() -> new UsernameNotFoundException("유저를 찾을 수 없습니다."));
+
+        CustomUserDetails principal = new CustomUserDetails(user, null);
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 

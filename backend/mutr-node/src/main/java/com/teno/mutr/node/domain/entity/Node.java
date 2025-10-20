@@ -5,10 +5,7 @@ import com.teno.mutr.core.domain.BaseTimeEntity;
 import com.teno.mutr.node.domain.vo.Coordinate;
 import com.teno.mutr.node.domain.vo.MutationInfo;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -18,30 +15,36 @@ import java.util.Map;
 @Entity
 @Table(name = "nodes", indexes = {
         @Index(name = "idx_nodes_parent", columnList = "parent_id"),
-        @Index(name = "idx_nodes_root", columnList = "root_id")
+        @Index(name = "idx_nodes_root", columnList = "root_id"),
+        @Index(name = "idx_nodes_user", columnList = "user_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 public class Node extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private Node parent;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "root_id")
-    private Node root;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String content;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String content;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Node parent;
+
+    /** 객체 -> ID
+     * 객체는 은하계 시각화 시 수천 개의 노드를 한 번에 로딩하여 N+1 등의 문제로 성능 저하를 일으킬 수 있지만,
+     * Long은 DB 인덱스 스캔만으로 전체 계보를 O(1)에 가깝게 조회할 수 있다.
+     */
+    @Column(name = "root_id")
+    private Long rootId; // 영속성 컨텍스트 최적화 위해 Node에서 Long으로 전환
 
     @Embedded
     private MutationInfo mutationInfo;
@@ -49,25 +52,35 @@ public class Node extends BaseTimeEntity {
     @Embedded
     private Coordinate coordinate;
 
+    @Builder.Default
+    @Column(name = "reaction_count", nullable = false)
     private Integer reactionCount = 0;
 
+    @Builder.Default
+    @Column(name = "is_ai_generated", nullable = false)
     private Boolean isAiGenerated = false;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
+    @Builder.Default
     private Map<String, Object> metadata = new HashMap<>();
 
-    @Builder
-    public Node(Node parent, Node root, User user, String content, MutationInfo mutationInfo, Coordinate coordinate,
-                Boolean isAiGenerated) {
-        this.parent = parent;
-        // 부모가 있으면 부모의 root를, 없으면 부모 자신이 root가 됨 (최상위 노드면 null)
-        this.root = (parent != null) ? (parent.getRoot() != null ? parent.getRoot() : parent) : null;
-        this.user = user;
-        this.content = content;
-        this.mutationInfo = mutationInfo;
-        this.coordinate = coordinate;
-        this.isAiGenerated = isAiGenerated;
+    /** Anemic Model -> Rich Model
+     * Anemic Model은 엔티티는 데이터만 담고, 모든 로직은 서비스에서 처리하는 절차지향적 방식이고,
+     * Rich Model은 엔티티와 VO가 스스로의 상태를 변경하는 메서드를 가지는 객체지향적 방식이다.
+     * 서비스에 로직이 몰리면 코드가 비대해지고 유지보수가 힘들어지기 때문에
+     * Rich를 택함으로써 객체 스스로가 자신의 데이터 무결성을 책임지게 하고, 비즈니스 규칙을 테스트하기 훨씬 쉬워진다.
+     */
+    public void setSelfAsRoot() {
+        if (this.rootId == null) {
+            this.rootId = this.id;
+        }
+    }
+
+    public void setRootFromParent(Node parent) {
+        if (parent != null) {
+            this.rootId = (parent.getRootId() != null) ? parent.getRootId() : parent.getId();
+        }
     }
 
     public void incrementReactionCount() {
