@@ -43,7 +43,7 @@ public class User extends BaseTimeEntity {
         this.provider = provider;
     }
 
-    public void recordLogin() {
+    public void onLogin() {
         this.lastLoginAt = LocalDateTime.now();
     }
 

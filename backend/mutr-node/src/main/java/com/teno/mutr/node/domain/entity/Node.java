@@ -71,19 +71,43 @@ public class Node extends BaseTimeEntity {
      * 서비스에 로직이 몰리면 코드가 비대해지고 유지보수가 힘들어지기 때문에
      * Rich를 택함으로써 객체 스스로가 자신의 데이터 무결성을 책임지게 하고, 비즈니스 규칙을 테스트하기 훨씬 쉬워진다.
      */
-    public void setSelfAsRoot() {
+
+    /**
+     * 이 노드가 새로운 은하계의 시작점이 됨을 선언합니다.
+     */
+    public void initRootAsSelf() {
         if (this.rootId == null) {
             this.rootId = this.id;
         }
     }
 
-    public void setRootFromParent(Node parent) {
+    /**
+     * 부모 노드로부터 은하계 소속 정보(rootId)를 계승합니다.
+     */
+    public void inheritRootFrom(Node parent) {
         if (parent != null) {
             this.rootId = (parent.getRootId() != null) ? parent.getRootId() : parent.getId();
         }
     }
 
-    public void incrementReactionCount() {
+    /**
+     * 노드가 사용자로부터 새로운 반응을 얻었을 때 호출됩니다.
+     */
+    public void addReaction() {
         this.reactionCount++;
+    }
+
+    /**
+     * 기술적인 ID 반환보다는 '근원(Origin)'의 식별자를 가져온다는 의미를 담습니다.
+     */
+    public Long getParentId() {
+        return this.parent != null ? this.parent.getId() : null;
+    }
+
+    /**
+     * 이 노드가 은하계의 탄생점(루트)인지 확인합니다.
+     */
+    public boolean isRoot() {
+        return this.parent == null;
     }
 }

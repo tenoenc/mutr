@@ -8,20 +8,21 @@ import java.util.Random;
 
 @Component
 public class NodeDomainService {
-    private final Random random = new Random();
 
-    public Coordinate calculateNewCoordinate(Node parent) {
-        if (parent == null) return Coordinate.zero();
+    private static final double DEFAULT_GALAXY_RADIUS = 15.0;
 
-        // 부모 좌표 기준 랜덤 오프셋 기준
-        double offsetX = (random.nextDouble() - 0.5) * 2.0;
-        double offsetY = (random.nextDouble() - 0.5) * 2.0;
-        double offsetZ = (random.nextDouble() - 0.5) * 2.0;
+    public Coordinate determinePosition(Node parent) {
+        if (parent == null) {
+            return Coordinate.of(
+                    (Math.random() - 0.5) * 5,
+                    (Math.random() - 0.5) * 5,
+                    (Math.random() - 0.5) * 5
+            );
+        }
 
-        return Coordinate.of(
-                parent.getCoordinate().getX() + offsetX,
-                parent.getCoordinate().getY() + offsetY,
-                parent.getCoordinate().getZ() + offsetZ
-        );
+        Coordinate parentCoord = parent.getCoordinate();
+
+        // TODO: 나중에 변이 점수에 따라 radius를 조절하면 변이가 심할수록 멀리 떨어지는 연출 가능
+        return parentCoord.calculateRandomPointOnSphere(DEFAULT_GALAXY_RADIUS);
     }
 }
