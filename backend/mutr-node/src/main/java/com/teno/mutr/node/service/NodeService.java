@@ -9,6 +9,7 @@ import com.teno.mutr.node.domain.vo.MutationInfo;
 import com.teno.mutr.node.web.dto.NodeCreateRequest;
 import com.teno.mutr.node.web.dto.NodeResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 public class NodeService {
     private final NodeRepository nodeRepository;
     private final NodeDomainService nodeDomainService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * 특정 트리의 모든 노드를 리스트 형태로 반환합니다.
@@ -42,7 +44,7 @@ public class NodeService {
         // 데이터 준비 (외부 의존성 - DB)
         Node parent = request.parentId() == null ? null :
                 nodeRepository.findById(request.parentId())
-                        .orElseThrow(() -> new IllegalArgumentException("부모 노드 없음"));
+                        .orElseThrow(() -> new IllegalArgumentException("부모 노드가 없습니다."));
 
         // 핵심 비즈니스 로직 위임 (도메인 서비스 호출)
         Coordinate newCoordinate = nodeDomainService.calculateNewCoordinate(parent);
@@ -63,7 +65,17 @@ public class NodeService {
             savedNode.setSelfAsRoot();
         }
 
+        NodeResponse response = NodeResponse.from(savedNode);
+
+        // 실시간 브로드 캐스팅
+        broadcastNewNode(response);
+
         // 결과를 DTO로 변환하여 응답
-        return NodeResponse.from(savedNode);
+        return response;
+    }
+
+    private void broadcastNewNode(NodeResponse response) {
+        String destination = "/topic/galaxy/" + response.getRootId();
+        messagingTemplate.convertAndSend(destination, response);
     }
 }
