@@ -40,11 +40,11 @@ public class Node extends BaseTimeEntity {
     private Node parent;
 
     /** 객체 -> ID
-     * 객체는 은하계 시각화 시 수천 개의 노드를 한 번에 로딩하여 N+1 등의 문제로 성능 저하를 일으킬 수 있지만,
-     * Long은 DB 인덱스 스캔만으로 전체 계보를 O(1)에 가깝게 조회할 수 있다.
+     * 객체는 트리 시각화 시 수천 개의 노드를 한 번에 로딩하여 N+1 등의 문제로 성능 저하를 일으킬 수 있지만,
+     * ID는 DB 인덱스 스캔만으로 전체 계보를 O(1)에 가깝게 조회할 수 있다.
      */
     @Column(name = "root_id")
-    private Long rootId; // 영속성 컨텍스트 최적화 위해 Node에서 Long으로 전환
+    private Long rootId;
 
     @Embedded
     private MutationInfo mutationInfo;
