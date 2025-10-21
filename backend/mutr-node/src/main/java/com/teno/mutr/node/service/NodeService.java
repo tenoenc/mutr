@@ -2,6 +2,7 @@ package com.teno.mutr.node.service;
 
 import com.teno.mutr.auth.domain.entity.User;
 import com.teno.mutr.node.domain.entity.Node;
+import com.teno.mutr.node.domain.event.NodeCreateEvent;
 import com.teno.mutr.node.domain.repository.NodeRepository;
 import com.teno.mutr.node.domain.service.NodeDomainService;
 import com.teno.mutr.node.domain.vo.Coordinate;
@@ -10,6 +11,7 @@ import com.teno.mutr.node.web.dto.NodeCreateRequest;
 import com.teno.mutr.node.web.dto.NodeResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,25 +26,38 @@ public class NodeService {
     private final NodeRepository nodeRepository;
     private final NodeDomainService nodeDomainService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 노드 생성
      */
     @Transactional
     public NodeResponse createNode(User user, NodeCreateRequest request) {
-        // 1. 부모 노드 조회
+        // 1. 초기값 설정
         Node parent = null;
+        String parentSummary = "";
+        String fullContext = "";
+
+        // 2. 부모가 있는 경우 직계 계보(Context) 수집
         if (request.parentId() != null) {
-            parent = nodeRepository.findById(request.parentId()).orElseThrow(() ->
-                    new IllegalArgumentException("부모 노드가 존재하지 않습니다."));
+            parent = nodeRepository.findById(request.parentId())
+                    .orElseThrow(() -> new IllegalArgumentException("부모 노드가 존재하지 않습니다."));
+
+            // 부모의 요약된 주제(이름) 가져오기
+            parentSummary = (parent.getTopic() != null) ? parent.getTopic() : "";
+
+            // 루트부터 부모까지의 직계 글 리스트 조회 및 결합
+            List<String> ancestorContents = nodeRepository.findAncestorContents(request.parentId());
+            fullContext = String.join(" ", ancestorContents);
         }
 
-        // 2. 좌표 결정
+        // 3. 좌표 결정
         Coordinate position = nodeDomainService.determinePosition(
-                parent, request.x(), request.y(), request.z(), request.dirX(), request.dirY(), request.dirZ()
+                parent, request.x(), request.y(), request.z(),
+                request.dirX(), request.dirY(), request.dirZ()
         );
 
-        // 3. 노드 생성
+        // 4. 노드 객체 생성
         Node node = Node.builder()
                 .content(request.content())
                 .user(user)
@@ -51,14 +66,17 @@ public class NodeService {
                 .mutationInfo(MutationInfo.origin())
                 .build();
 
-        // 4. 저장 및 RootId 자가 참조 처리 (Dirty Checking 활용)
+        // 5. DB 저장 및 RootId 계승 처리
         Node savedNode = nodeRepository.save(node);
         node.decideRootFrom(parent);
 
-        // 5. 응답 생성 (상태 변경이 완료된 후 생성)
-        NodeResponse response = NodeResponse.from(savedNode);
+        // 6. AI 엔진 호출 (gRPC 통신)
+        eventPublisher.publishEvent(new NodeCreateEvent(
+                node.getId(), node.getContent(), parentSummary, fullContext
+        ));
 
-        // 6. 실시간 브로드캐스팅
+        // 7. 실시간 브로드캐스팅 및 응답 반환
+        NodeResponse response = NodeResponse.from(savedNode);
         broadcastToPublic(response);
 
         return response;

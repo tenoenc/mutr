@@ -14,21 +14,26 @@ import lombok.NoArgsConstructor;
 public class MutationInfo {
 
     @Column(name = "mutation_filter")
-    private String filter; // 변이 필터 이름 (원본은 "origin")
+    private String filter; // 변이 필터 이름
 
     @Column(name = "mutation_score")
-    private Double score; // AI 변이 점수 (0.0 ~ 1.0)
+    private Double score; // AI 변이 점수
     
     public static MutationInfo origin() {
         return new MutationInfo("ORIGIN", 0.0);
     }
 
-    public static MutationInfo mutate(String filter, double score) {
-        return MutationInfo.of(filter, score);
-    }
+    public static MutationInfo mutate(double score) {
+        String filter;
 
-    // 변조 점수가 특정 임계치를 넘었는지 확인
-    public boolean isHighlyMutated(double threshold) {
-        return this.score >= threshold;
+        if (score < 0.25) {
+            filter = "CLUSTER";   // 밀접 배치 성단
+        } else if (score < 0.7) {
+            filter = "EVOLUTION"; // 새로운 궤도로 분화
+        } else {
+            filter = "MUTATION";  // 완전한 변이
+        }
+
+        return MutationInfo.of(filter, score);
     }
 }
