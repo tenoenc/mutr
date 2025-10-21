@@ -7,12 +7,18 @@ import com.teno.mutr.auth.web.handler.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 /** JWT (Stateless)
  * Session/Cookie 인증 방식은 서버 메모리나 Redis에 유저 상태를 저장하는 방식이다.
@@ -32,6 +38,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // CORS 설정 활성화 및 소스 연결
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable) // API 중심이므로 CSRF 비활성화
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 미사용
@@ -39,7 +47,10 @@ public class SecurityConfig {
                         // 웹 소켓 핸드쉐이크 엔드포인트 허용
                         // SockJS를 사용하면 /ws-mutr/info 등 하위 경로가 생기므로 /**를 붙임
                         .requestMatchers("/ws-mutr/**").permitAll()
-                        .requestMatchers("/", "/login/**", "/oauth2/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/nodes/viz").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/nodes").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/", "/login/**", "/oauth2/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -51,5 +62,24 @@ public class SecurityConfig {
                 .addFilterBefore(new JwtAuthenticationFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // CORS 정책 정의
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // 프론트엔드 Vite 서버 주소 허용
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        // 모든 HTTP 메서드 허용 (GET, POST, PUT, DELETE 등)
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // 모든 헤더 허용 (Authorization, Content-Type 등)
+        configuration.setAllowedHeaders(List.of("*"));
+        // 쿠키나 인증 헤더 허용
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

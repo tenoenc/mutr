@@ -8,15 +8,15 @@ import com.teno.mutr.node.domain.vo.Coordinate;
 import com.teno.mutr.node.domain.vo.MutationInfo;
 import com.teno.mutr.node.web.dto.NodeCreateRequest;
 import com.teno.mutr.node.web.dto.NodeResponse;
-import com.teno.mutr.node.web.dto.NodeVizResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -26,18 +26,23 @@ public class NodeService {
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
-     * 새로운 속삭임(Node)을 은하계에 생성합니다.
+     * 노드 생성
      */
     @Transactional
     public NodeResponse createNode(User user, NodeCreateRequest request) {
-        // 데이터 준비 (외부 의존성 - DB)
-        Node parent = request.parentId() == null ? null :
-                nodeRepository.findById(request.parentId())
-                        .orElseThrow(() -> new IllegalArgumentException("부모 노드가 없습니다."));
+        // 1. 부모 노드 조회
+        Node parent = null;
+        if (request.parentId() != null) {
+            parent = nodeRepository.findById(request.parentId()).orElseThrow(() ->
+                    new IllegalArgumentException("부모 노드가 존재하지 않습니다."));
+        }
 
-        // 핵심 비즈니스 로직 위임 (도메인 서비스 호출)
-        Coordinate position = nodeDomainService.determinePosition(parent);
+        // 2. 좌표 결정
+        Coordinate position = nodeDomainService.determinePosition(
+                parent, request.x(), request.y(), request.z(), request.dirX(), request.dirY(), request.dirZ()
+        );
 
+        // 3. 노드 생성
         Node node = Node.builder()
                 .content(request.content())
                 .user(user)
@@ -46,49 +51,35 @@ public class NodeService {
                 .mutationInfo(MutationInfo.origin())
                 .build();
 
-        // 도메인 객체 생성 및 상태 변경
-        node.inheritRootFrom(parent);
+        // 4. 저장 및 RootId 자가 참조 처리 (Dirty Checking 활용)
         Node savedNode = nodeRepository.save(node);
+        node.decideRootFrom(parent);
 
-        if (savedNode.getRootId() == null) {
-            savedNode.initRootAsSelf();
-        }
-
+        // 5. 응답 생성 (상태 변경이 완료된 후 생성)
         NodeResponse response = NodeResponse.from(savedNode);
 
-        // 실시간 브로드 캐스팅
-        broadcastToGalaxy(response);
+        // 6. 실시간 브로드캐스팅
+        broadcastToPublic(response);
 
-        // 결과를 DTO로 변환하여 응답
         return response;
     }
 
     /**
-     * 특정 은하계의 전체 계보(Lineage)를 조회합니다.
+     * 주변 노드 조회 (Spatial Query)
      */
-    public List<NodeResponse> getLineage(Long rootId) {
-        List<Node> nodes = nodeRepository.findAllByRootIdOrderByCreatedAtAsc(rootId);
-
-        if (nodes.isEmpty()) {
-            throw new IllegalArgumentException("존재하지 않는 은하계이거나 노드가 없습니다.");
-        }
-
-        return nodes.stream()
+    public List<NodeResponse> getNearbyNodes(Double x, Double y, Double z, Double range) {
+        return nodeRepository.findNearbyNodes(x, y, z, range).stream()
                 .map(NodeResponse::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
-     * 3D 시각화를 위한 경량 스타맵(Viz) 데이터를 조회합니다.
+     * 모든 사용자가 듣고 있는 공용 채널로 전송
+     * 프론트엔드는 이 채널을 구독하여 실시간으로 렌더링함
      */
-    public List<NodeVizResponse> getGalaxyVizData(Long rootId) {
-        return nodeRepository.findAllByRootIdOrderByCreatedAtAsc(rootId).stream()
-                .map(NodeVizResponse::from)
-                .collect(Collectors.toList());
+    private void broadcastToPublic(NodeResponse response) {
+        // 특정 rootId 채널이 아닌, 전체 공유 채널로 쏩니다.
+        messagingTemplate.convertAndSend("/topic/galaxy/public", response);
     }
 
-    private void broadcastToGalaxy(NodeResponse response) {
-        String destination = "/topic/galaxy/" + response.getRootId();
-        messagingTemplate.convertAndSend(destination, response);
-    }
 }
