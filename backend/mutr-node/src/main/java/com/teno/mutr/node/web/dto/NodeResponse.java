@@ -12,11 +12,13 @@ public class NodeResponse {
     private Long id;
     private String content;
     private String authorNickname;
+    private String topic;
+    private String emotion;
+    private String mutationFilter;
+    private Double mutationScore;
     private Double x;
     private Double y;
     private Double z;
-    private String filter;
-    private Double score;
     private Long parentId;
     private Long rootId;
     private LocalDateTime cratedAt;
@@ -25,12 +27,13 @@ public class NodeResponse {
         return NodeResponse.builder()
                 .id(node.getId())
                 .content(node.getContent())
+                .emotion(node.getEmotion().getKey())
                 .authorNickname(node.getUser().getNickname())
+                .mutationFilter(node.getMutationInfo().getFilter())
+                .mutationScore(node.getMutationInfo().getScore())
                 .x(node.getCoordinate().getX())
                 .y(node.getCoordinate().getY())
                 .z(node.getCoordinate().getZ())
-                .filter(node.getMutationInfo().getFilter())
-                .score(node.getMutationInfo().getScore())
                 .parentId(node.getParentId())
                 .rootId(node.getRootId())
                 .cratedAt(node.getCreatedAt())

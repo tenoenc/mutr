@@ -4,6 +4,7 @@ import com.teno.mutr.node.domain.dto.AnalysisResult;
 import com.teno.mutr.node.domain.entity.Node;
 import com.teno.mutr.node.domain.event.NodeCreateEvent;
 import com.teno.mutr.node.domain.repository.NodeRepository;
+import com.teno.mutr.node.domain.vo.Emotion;
 import com.teno.mutr.node.domain.vo.MutationInfo;
 import com.teno.mutr.node.infra.grpc.NodeAnalysisClient;
 import com.teno.mutr.node.web.dto.NodeResponse;
@@ -29,16 +30,19 @@ public class NodeAnalysisListener {
         AnalysisResult result = nodeAnalysisClient.analyze(event.content(), event.parentSummary(),
                 event.fullContext());
 
-        // 2. 정체성 확정
+        // 2. 타입 변환 (안정성 확보)
+        Emotion validatedEmotion = Emotion.from(result.emotion());
+
+        // 3. 정체성 확정
         Node node = nodeRepository.findById(event.nodeId()).orElseThrow();
         node.defineIdentity(
                 result.topic(),
                 MutationInfo.mutate(result.mutationScore()),
-                result.emotion(),
+                validatedEmotion,
                 result.confidence()
         );
 
-        // 3. 완성된 노드 알림 전송
+        // 4. 완성된 노드 알림 전송
         messagingTemplate.convertAndSend("/topic/galaxy", NodeResponse.from(node));
     }
 }

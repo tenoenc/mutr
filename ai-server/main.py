@@ -37,6 +37,17 @@ class MUTRModelEngine:
         self.ppl_model.eval()
         print(f"✅ MUTR 고도화 엔진 로드 완료 ({self.device})")
 
+        # 감정 라벨 매핑 딕셔너리
+        self.emotion_map = {
+            "기쁨": "joy",
+            "당황": "embarrassed",
+            "분노": "anger",
+            "불안": "anxiety",
+            "상처": "hurt",
+            "슬픔": "sadness",
+            "평온": "neutral"
+        }
+
     def _calculate_ppl(self, text):
         """문장의 자연스러움(Perplexity) 계산"""
         if not text or len(text.strip()) < 1: return 999999
@@ -92,7 +103,8 @@ class MUTRModelEngine:
             sent_outputs = self.sent_model(**sent_inputs)
             sent_probs = F.softmax(sent_outputs.logits, dim=-1)
             conf, pred = torch.max(sent_probs, dim=-1)
-            emotion_label = self.sent_model.config.id2label[pred.item()]
+            raw_emotion = self.sent_model.config.id2label[pred.item()]
+            emotion_label = self.emotion_map.get(raw_emotion, raw_emotion)
 
         # STEP 2. 주제 추출 (전체 맥락 + 현재 글)
         summary_input = f"{full_context} {content}".strip()

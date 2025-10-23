@@ -3,6 +3,16 @@ import { Html, MeshDistortMaterial } from '@react-three/drei'; // 흐물흐물�
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+const emotionColors = {
+  "joy": "#FFD700",         // 기쁨
+  "neutral": "#20B2AA",     // 평온
+  "sadness": "#1E90FF",     // 슬픔
+  "anger": "#FF4500",       // 분노
+  "anxiety": "#9370DB",     // 불안
+  "embarrassed": "#FFA500", // 당황
+  "hurt": "#4B0082"         // 상처
+};
+
 export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const meshRef = useRef();
   const materialRef = useRef();
