@@ -17,6 +17,7 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const meshRef = useRef();
   const materialRef = useRef();
   const haloRef = useRef();
+  const topicRef = useRef(); 
   
   const pos = [node.x ?? 0, node.y ?? 0, node.z ?? 0];
   const nodeIdString = node.id ? String(node.id) : "";
@@ -25,53 +26,86 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const baseColor = useMemo(() => emotionColors[node.emotion] || "#90A4AE", [node.emotion]);
   const adjective = useMemo(() => emotionAdjectives[node.emotion] || "이름 없는", [node.emotion]);
   
-  // 루트 노드는 안정감을 위해 일렁임을 거의 멈춤
+  const displayTopic = useMemo(() => {
+    const raw = node.topic || "이름 없는 형체";
+    if (raw.length <= 20) return raw;
+    const cutStr = raw.slice(0, 20);
+    const cleanedStr = cutStr.replace(/\.+$/, "");
+    return `${cleanedStr}...`;
+  }, [node.topic]);
+
   const distortAmount = useMemo(() => {
     if (isRoot) return 0.02; 
     const score = node.mutationScore ?? 0;
     return (score * 0.7) + 0.1; 
   }, [node.mutationScore, isRoot]);
 
-  const targetColor = useMemo(() => {
-    const color = new THREE.Color(baseColor);
-    if (isSelected) return color.clone().add(new THREE.Color("#222222")); 
-    return color;
-  }, [isSelected, baseColor]);
-
-  // 루트 노드 본체 크기 설정
   const baseScale = isRoot ? 1.3 : 0.8;
   const targetScale = isSelected ? baseScale * 1.3 : baseScale;
 
-  useFrame(({ clock }) => {
-    const time = clock.getElapsedTime();
+  useFrame((state) => {
+    const time = state.clock.getElapsedTime();
+    const camera = state.camera;
 
-    if (materialRef.current) materialRef.current.color.lerp(targetColor, 0.1);
     if (meshRef.current) {
       meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
       if (isRoot) meshRef.current.rotation.y = time * 0.1;
     }
 
-    // ✅ [핵심 변경] 후광 애니메이션 강화
     if (isRoot && haloRef.current) {
-        // 1. 크기 대폭 확대: 본체보다 훨씬 큰 범위(1.8배 ~ 2.2배)에서 박동
-        // 2. 속도 조절: 더 천천히 웅장하게(time * 0.8) 움직임
         const pulseScale = 2.0 + Math.sin(time * 0.8) * 0.2;
         haloRef.current.scale.set(pulseScale, pulseScale, pulseScale);
-        haloRef.current.rotation.y = time * 0.05;
+    }
+
+    if (topicRef.current) {
+      const distance = camera.position.distanceTo(meshRef.current.getWorldPosition(new THREE.Vector3()));
+      const visibleDistance = isRoot ? 60 : 35;
+      const fadeDistance = 15; 
+
+      let opacity = 1 - (distance - fadeDistance) / (visibleDistance - fadeDistance);
+      opacity = Math.max(0, Math.min(1, opacity));
+
+      topicRef.current.style.opacity = isSelected ? 0.5 : opacity;
+      topicRef.current.style.display = (isSelected || opacity > 0) ? 'block' : 'none';
     }
   });
 
   return (
     <group position={pos}>
-      {/* ✅ [핵심 변경] 후광 효과 강화 */}
+      {/* 텍스트 레이어 (Html) */}
+      <Html 
+        distanceFactor={25} 
+        position={[0, 2.5, 0]} 
+        center 
+        style={{ pointerEvents: 'none', zIndex: 1 }}
+      >
+        <div 
+          ref={topicRef}
+          style={{
+            color: '#2c3e50',
+            fontWeight: '900', // 외곽선에 글자가 묻히지 않도록 더 두꺼운 폰트 권장
+            fontSize: '24px',
+            whiteSpace: 'nowrap',
+            transition: 'opacity 0.2s',
+            fontFamily: '"Noto Sans KR", sans-serif',
+            
+            /* ✅ 현대적인 솔리드 아웃라인 구현 */
+            WebkitTextStroke: '1.5px #ffffff', // 외곽선 두께와 색상
+            paintOrder: 'stroke fill',         // 선을 먼저 그려 글자 본체가 얇아지는 현상 방지
+          }}
+        >
+          {displayTopic}
+        </div>
+      </Html>
+
+      {/* 루트 노드 후광 */}
       {isRoot && (
         <mesh ref={haloRef}>
             <sphereGeometry args={[1, 32, 32]} />
             <meshBasicMaterial
               color={baseColor}
               transparent
-              // ✅ 불투명도 대폭 상향 (0.3 -> 0.6): 밝은 하늘 배경에서도 선명하게 보임
-              opacity={0.6} 
+              opacity={0.5} 
               blending={THREE.AdditiveBlending}
               side={THREE.BackSide}
               depthWrite={false}
@@ -79,6 +113,7 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         </mesh>
       )}
 
+      {/* 별 본체 */}
       <mesh 
         ref={meshRef}
         onClick={(e) => { e.stopPropagation(); onSelect(node.id); }}
@@ -97,8 +132,9 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         />
       </mesh>
 
+      {/* 상세 패널 (Html) */}
       {isSelected && (
-        <Html distanceFactor={20} position={[4, 4, 0]}>
+        <Html distanceFactor={20} position={[4, 4, 0]} style={{ zIndex: 100 }}>
           <div style={{
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(15px)',
@@ -110,16 +146,9 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
             boxShadow: `0 30px 60px rgba(0,0,0,0.15), 0 0 50px ${baseColor}55`,
             fontSize: '32px',
             lineHeight: '1.6',
-            fontFamily: '"Pretendard", sans-serif',
             animation: 'popIn 0.3s ease-out'
           }}>
-            <div style={{ 
-              color: baseColor, 
-              fontWeight: '900', 
-              fontSize: '24px', 
-              marginBottom: '20px',
-              filter: 'contrast(1.2)'
-            }}>
+            <div style={{ color: baseColor, fontWeight: '900', fontSize: '24px', marginBottom: '20px' }}>
               {adjective} 형체 #{nodeIdString} | {node.authorNickname}
             </div>
             <div style={{ color: '#2c3e50', wordBreak: 'break-all', fontWeight: '500' }}>
