@@ -3,101 +3,55 @@ import torch.nn.functional as F
 import re
 import grpc
 import numpy as np
+import time
+import threading
 from concurrent import futures
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, BartForConditionalGeneration, GPT2LMHeadModel, PreTrainedTokenizerFast
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sentence_transformers import SentenceTransformer, util
-from kobart import get_kobart_tokenizer
+from llama_cpp import Llama
 
-# gRPC 생성 파일
 import mutr_analysis_pb2
 import mutr_analysis_pb2_grpc
 
 class MUTRModelEngine:
-    """MUTR AI 모델들을 관리하고 고도화된 가드레일 로직을 수행하는 엔진"""
     def __init__(self):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu")
         
-        # 1. 주제 추출 (KoBART-title)
-        self.kb_tokenizer = get_kobart_tokenizer()
-        self.kb_model = BartForConditionalGeneration.from_pretrained("EbanLee/kobart-title").to(self.device)
+        # 1. 주제 추출 (Llama-3.2-3B) - [KoBART 대체 및 고도화]
+        self.llm = Llama(
+            model_path="./models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+            n_ctx=1024, 
+            n_threads=6, 
+            n_gpu_layers=18,
+            n_batch=512,
+            verbose=True
+        )
+        self.llm_lock = threading.Lock()
         
         # 2. 감정 분석 (RoBERTa)
         self.sent_tokenizer = AutoTokenizer.from_pretrained("Seonghaa/korean-emotion-classifier-roberta")
         self.sent_model = AutoModelForSequenceClassification.from_pretrained("Seonghaa/korean-emotion-classifier-roberta").to(self.device)
         
-        # 3. 변조 및 의미 유사도 분석 (KR-SBERT)
+        # 3. 변조 분석 (KR-SBERT)
         self.mut_model = SentenceTransformer("snunlp/KR-SBERT-V40K-klueNLI-augSTS").to(self.device)
 
-        # 4. 품질 검증 가드레일 (KoGPT2)
-        self.ppl_tokenizer = PreTrainedTokenizerFast.from_pretrained("skt/kogpt2-base-v2")
-        self.ppl_model = GPT2LMHeadModel.from_pretrained("skt/kogpt2-base-v2").to(self.device)
-        
-        self.kb_model.eval()
         self.sent_model.eval()
-        self.ppl_model.eval()
-        print(f"✅ MUTR 고도화 엔진 로드 완료 ({self.device})")
+        print(f"✅ MUTR 고도화 엔진 로드 완료 (Llama 3.2 통합 버전)")
 
-        # 감정 라벨 매핑 딕셔너리
         self.emotion_map = {
-            "기쁨": "joy",
-            "당황": "embarrassed",
-            "분노": "anger",
-            "불안": "anxiety",
-            "상처": "hurt",
-            "슬픔": "sadness",
-            "평온": "neutral"
+            "기쁨": "joy", "당황": "embarrassed", "분노": "anger",
+            "불안": "anxiety", "상처": "hurt", "슬픔": "sadness", "평온": "neutral"
         }
 
-    def _calculate_ppl(self, text):
-        """문장의 자연스러움(Perplexity) 계산"""
-        if not text or len(text.strip()) < 1: return 999999
-        encodings = self.ppl_tokenizer(text, return_tensors="pt")
-        input_ids = encodings.input_ids.to(self.device)
-        with torch.no_grad():
-            outputs = self.ppl_model(input_ids, labels=input_ids)
-            ppl = np.exp(outputs.loss.item())
-        return ppl if not (np.isnan(ppl) or np.isinf(ppl)) else 999999
-
-    def _validate_by_ai(self, content, generated, ppl_score, sim_score):
-        """
-        [AI 수치 기반 엄격한 품질 검증]
-        1. 의미 유사도: 초단문 입력 시 기준 상향 (0.65) 하여 환각 차단
-        2. 가변 PPL: 15자 미만 핵심 요약 보호 (임계값 완화)
-        3. 반복성: 10자 이상 문장에서 문자 반복률 검사
-        """
-        # (1) 동적 유사도 임계값: 입력이 짧을수록 더 엄격하게 검증 (환각 방어)
-        sim_threshold = 0.65 if len(content) <= 5 else 0.38
-        if sim_score < sim_threshold:
-            return False, "SEMANTIC_MISMATCH"
-        
-        # (2) 가변 PPL 임계값: 짧은 핵심 요약(요가, 졸업식 등)의 과잉 진압 방지
-        ppl_threshold = 100000 if len(generated.replace(" ", "")) < 15 else 350
-        if ppl_score > ppl_threshold:
-            return False, "UNNATURAL_PPL"
-            
-        # (3) 반복성 검사 보정: 공백/기호 제외, 10자 이상에서만 작동
-        if len(generated) > 10:
-            pure_gen = re.sub(r"[^\w]", "", generated) 
-            if len(pure_gen) > 0:
-                for char in set(pure_gen):
-                    if pure_gen.count(char) / len(pure_gen) > 0.35:
-                        return False, "REPETITIVE_ARTIFACT"
-
-        return True, "PASS"
-
-    def _format_clean(self, text):
-        """뉴스 필터링이 아닌 출력 '형식' 정제 (대괄호 제거)"""
-        return re.sub(r"\[.*?\]", "", text).strip()
-
     def _calibrate_mutation(self, similarity):
-        """유사도를 MUTR 변조 점수(0~1)로 보정"""
+        """유사도를 변조 점수로 보정"""
         if similarity >= 0.35: score = (1.0 - similarity) * (0.2 / 0.65)
         elif similarity >= 0.15: score = 0.7 - (similarity - 0.15) * (0.4 / 0.2)
         else: score = 1.0 - max(0, similarity)
         return round(max(0.0, min(1.0, score)), 4)
 
     def analyze(self, content, parent_summary, full_context):
-        # STEP 1. 감정 분석 (현재 노드 글 단독)
+        # [STEP 1] 감정 분석
         sent_inputs = self.sent_tokenizer(content, return_tensors="pt", truncation=True, max_length=512).to(self.device)
         with torch.no_grad():
             sent_outputs = self.sent_model(**sent_inputs)
@@ -106,27 +60,47 @@ class MUTRModelEngine:
             raw_emotion = self.sent_model.config.id2label[pred.item()]
             emotion_label = self.emotion_map.get(raw_emotion, raw_emotion)
 
-        # STEP 2. 주제 추출 (전체 맥락 + 현재 글)
+        # [STEP 2] 주제 추출 (Llama 3.2 3B)
         summary_input = f"{full_context} {content}".strip()
-        kb_inputs = self.kb_tokenizer(summary_input, return_tensors="pt", truncation=True, max_length=1024).to(self.device)
-        with torch.no_grad():
-            summary_ids = self.kb_model.generate(
-                input_ids=kb_inputs['input_ids'], max_length=40, num_beams=4,
-                repetition_penalty=4.5, no_repeat_ngram_size=2
+        target_context = summary_input[-500:].strip() # 최신 500자 맥락
+
+        prompt = (
+            f"<|start_header_id|>system<|end_header_id|>\n\n"
+            f"You are 'Seongdan', a professional diary analyzer. "
+            f"Your goal is to create a concise, abstract Korean title (nominal phrase) for the current input. "
+            f"**CRITICAL RULES:**\n"
+            f"1. NEVER copy the dialogue directly from the text.\n"
+            f"2. DO NOT use quotation marks or conversational endings (~하자, ~했다).\n"
+            f"3. Use abstract nouns to represent the core theme.\n\n"
+            f"Examples:\n"
+            f"- Input: '우리 피자 먹자! 진짜 배고파!' -> Title: 피자를 향한 갈망\n"
+            f"- Input: '8시까지 모여서 게임하기로 함' -> Title: 저녁 모임 약속\n"
+            f"- Input: '아무것도 하기 싫다...' -> Title: 무기력한 오후의 기록\n"
+            f"<|eot_id|>\n"
+            f"<|start_header_id|>user<|end_header_id|>\n\n"
+            f"Previous Theme: {parent_summary if len(summary_input) >= 500 else 'None'}\n"
+            f"Current Content: {target_context}\n\n"
+            f"Title (In Korean):<|eot_id|>\n"
+            f"<|start_header_id|>assistant<|end_header_id|>\n\n"
+            f"제목: "
+        )
+        with self.llm_lock:
+            response = self.llm(
+                prompt,
+                max_tokens=25,
+                temperature=0.0,
+                repeat_penalty=2.0,
+                stop=["\n", "1.", "●", "제목:", "<|eot_id|>"]
             )
-        generated_raw = self.kb_tokenizer.decode(summary_ids[0], skip_special_tokens=True).strip()
-        cleaned_topic = self._format_clean(generated_raw)
-
-        # STEP 3. AI 기반 가드레일 검증
-        ppl = self._calculate_ppl(cleaned_topic)
-        # 현재 노드 내용과 요약문의 의미 유사도 측정
-        sim_val = util.cos_sim(self.mut_model.encode(content), self.mut_model.encode(cleaned_topic)).item()
         
-        is_pass, _ = self._validate_by_ai(content, cleaned_topic, ppl, sim_val)
-        # 품질 미달 시 원문 앞부분으로 안전하게 Fallback
-        final_topic = cleaned_topic if is_pass else content[:15].strip() + "..."
+        gen_topic = response['choices'][0]['text'].strip()
+        final_topic = re.sub(r"^\d+\.\s*", "", gen_topic).replace(".", "").strip()
+        
+        # [사용자 제안 지능형 Fallback]
+        if not final_topic:
+            final_topic = parent_summary if parent_summary else "오늘의 기록"
 
-        # STEP 4. 변조 점수 계산 (이전 요약 vs 현재 글)
+        # [STEP 3] 변조 점수 계산
         mutation_score = 0.0
         if parent_summary and parent_summary.strip():
             embeddings = self.mut_model.encode([parent_summary, content], convert_to_tensor=True)
@@ -135,7 +109,6 @@ class MUTRModelEngine:
 
         return final_topic, emotion_label, float(conf.item()), float(mutation_score)
 
-# --- [gRPC 서비스 정의] ---
 class MUTRAnalysisServicer(mutr_analysis_pb2_grpc.AnalysisServiceServicer):
     def __init__(self):
         self.engine = MUTRModelEngine()
@@ -148,12 +121,11 @@ class MUTRAnalysisServicer(mutr_analysis_pb2_grpc.AnalysisServiceServicer):
             topic=topic, emotion=emotion, confidence=conf, mutation_score=mut
         )
 
-# --- [서버 실행부] ---
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     mutr_analysis_pb2_grpc.add_AnalysisServiceServicer_to_server(MUTRAnalysisServicer(), server)
     server.add_insecure_port('[::]:50051')
-    print("🚀 MUTR AI-Guardrail Engine started on port 50051")
+    print("🚀 MUTR AI Engine (Verified) started on port 50051")
     server.start()
     server.wait_for_termination()
 
