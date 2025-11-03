@@ -1,4 +1,4 @@
-package com.teno.mutr.node.domain.dto;
+package com.teno.mutr.ai.domain;
 
 public record AnalysisResult(
         String topic,
