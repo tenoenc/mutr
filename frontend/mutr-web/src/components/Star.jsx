@@ -43,7 +43,6 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const baseScale = isRoot ? 1.3 : 0.8;
   const targetScale = isSelected ? baseScale * 1.3 : baseScale;
 
-  // 공통 토픽 스타일
   const topicBaseStyle = {
     color: '#2c3e50',
     fontWeight: '900',
@@ -53,6 +52,7 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
     WebkitTextStroke: '1.5px #ffffff',
     paintOrder: 'stroke fill',
     transition: 'opacity 0.2s',
+    userSelect: 'none', // 텍스트 드래그 방지
   };
 
   useFrame((state) => {
@@ -69,7 +69,6 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         haloRef.current.scale.set(pulseScale, pulseScale, pulseScale);
     }
 
-    // 거리 페이드 (isSelected 시에는 패널 쪽에서 보이므로 노드 위는 숨김)
     if (topicRef.current) {
       const distance = camera.position.distanceTo(meshRef.current.getWorldPosition(new THREE.Vector3()));
       const visibleDistance = isRoot ? 60 : 35;
@@ -85,32 +84,18 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
 
   return (
     <group position={pos}>
-      {/* 노드 위에 떠 있는 기본 토픽 레이어 */}
       {!isSelected && (
-        <Html 
-          distanceFactor={25} 
-          position={[0, 2.5, 0]} 
-          center 
-          style={{ pointerEvents: 'none', zIndex: 1 }}
-        >
+        <Html distanceFactor={25} position={[0, 2.5, 0]} center style={{ pointerEvents: 'none', zIndex: 1 }}>
           <div ref={topicRef} style={topicBaseStyle}>
             {displayTopic}
           </div>
         </Html>
       )}
 
-      {/* 후광 및 본체 */}
       {isRoot && (
         <mesh ref={haloRef}>
             <sphereGeometry args={[1, 32, 32]} />
-            <meshBasicMaterial
-              color={baseColor}
-              transparent
-              opacity={0.5} 
-              blending={THREE.AdditiveBlending}
-              side={THREE.BackSide}
-              depthWrite={false}
-            />
+            <meshBasicMaterial color={baseColor} transparent opacity={0.5} blending={THREE.AdditiveBlending} side={THREE.BackSide} depthWrite={false} />
         </mesh>
       )}
 
@@ -132,17 +117,29 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         />
       </mesh>
 
-      {/* 상세 패널 레이어 (토픽을 테두리 바깥 상단에 배치) */}
       {isSelected && (
         <Html distanceFactor={20} position={[4, 4, 0]} center style={{ zIndex: 100 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            
-            {/* 패널 테두리 바깥 위쪽에 배치된 토픽 */}
+          <div 
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              cursor: 'default'
+            }}
+            /* 패널 클릭 시 캔버스의 deselection 로직 전파 차단 */
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            /* 패널 더블 클릭 시 별 더블 클릭과 동일한 동작 수행 */
+            onDoubleClick={(e) => { 
+              e.stopPropagation(); 
+              onDoubleClick(node); 
+            }}
+          >
             <div style={{ ...topicBaseStyle, marginBottom: '20px' }}>
               {displayTopic}
             </div>
 
-            {/* 상세 패널 본체 */}
             <div style={{
               background: 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(15px)',
@@ -154,7 +151,9 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
               boxShadow: `0 30px 60px rgba(0,0,0,0.15), 0 0 50px ${baseColor}55`,
               fontSize: '32px',
               lineHeight: '1.6',
-              animation: 'popIn 0.3s ease-out'
+              animation: 'popIn 0.3s ease-out',
+              userSelect: 'none', // 패널 내 텍스트 드래그 방지
+              WebkitUserSelect: 'none' // 크로스 브라우징 지원
             }}>
               <div style={{ color: baseColor, fontWeight: '900', fontSize: '24px', marginBottom: '20px' }}>
                 {adjective} 형체 #{nodeIdString} | {node.authorNickname}
