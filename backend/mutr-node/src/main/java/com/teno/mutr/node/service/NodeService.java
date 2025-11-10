@@ -3,6 +3,7 @@ package com.teno.mutr.node.service;
 import com.teno.mutr.auth.domain.entity.User;
 import com.teno.mutr.node.domain.entity.Node;
 import com.teno.mutr.node.domain.event.NodeCreateEvent;
+import com.teno.mutr.node.domain.repository.AnalysisContextProjection;
 import com.teno.mutr.node.domain.repository.NodeRepository;
 import com.teno.mutr.node.domain.service.NodeDomainService;
 import com.teno.mutr.node.domain.vo.Coordinate;
@@ -38,17 +39,10 @@ public class NodeService {
         String parentSummary = "";
         String fullContext = "";
 
-        // 2. 부모가 있는 경우 직계 계보(Context) 수집
+        // 2. 부모 노드 조회
         if (request.parentId() != null) {
-            parent = nodeRepository.findById(request.parentId())
-                    .orElseThrow(() -> new IllegalArgumentException("부모 노드가 존재하지 않습니다."));
-
-            // 부모의 요약된 주제(이름) 가져오기
-            parentSummary = (parent.getTopic() != null) ? parent.getTopic() : "";
-
-            // 루트부터 부모까지의 직계 글 리스트 조회 및 결합
-            List<String> ancestorContents = nodeRepository.findAncestorContents(request.parentId());
-            fullContext = String.join(" ", ancestorContents);
+            parent = nodeRepository.findById(request.parentId()).orElseThrow(() ->
+                    new IllegalArgumentException("노드가 존재하지 않습니다."));
         }
 
         // 3. 좌표 결정
@@ -70,12 +64,19 @@ public class NodeService {
         Node savedNode = nodeRepository.save(node);
         node.decideRootFrom(parent);
 
-        // 6. AI 엔진 호출 (gRPC 통신)
+        // 6. 직계 계보(Context) 수집
+        AnalysisContextProjection projection = nodeRepository.findAnalysisContext(savedNode.getId())
+                .orElseThrow(() -> new IllegalArgumentException("노드가 존재하지 않습니다."));
+
+        parentSummary = projection.getBaselineTopic();
+        fullContext = projection.getFullContext();
+
+        // 7. AI 엔진 호출 (gRPC 통신)
         eventPublisher.publishEvent(new NodeCreateEvent(
                 node.getId(), node.getContent(), parentSummary, fullContext
         ));
 
-        // 7. 실시간 브로드캐스팅 및 응답 반환
+        // 8. 실시간 브로드캐스팅 및 응답 반환
         NodeResponse response = NodeResponse.from(savedNode);
         broadcastToPublic(response);
 
