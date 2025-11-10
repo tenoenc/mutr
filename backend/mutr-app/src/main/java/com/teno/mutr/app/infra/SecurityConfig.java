@@ -1,5 +1,7 @@
 package com.teno.mutr.app.infra;
 
+import com.teno.mutr.auth.domain.repository.UserRepository;
+import com.teno.mutr.auth.infra.guest.GuestAuthenticationFilter;
 import com.teno.mutr.auth.infra.jwt.JwtAuthenticationFilter;
 import com.teno.mutr.auth.infra.jwt.TokenProvider;
 import com.teno.mutr.auth.service.CustomOAuth2UserService;
@@ -34,6 +36,7 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final TokenProvider tokenProvider;
+    private final UserRepository userRepository;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -48,7 +51,7 @@ public class SecurityConfig {
                         // SockJS를 사용하면 /ws-mutr/info 등 하위 경로가 생기므로 /**를 붙임
                         .requestMatchers("/ws-mutr/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/nodes/viz").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/nodes").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/guest").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/", "/login/**", "/oauth2/**", "/error").permitAll()
                         .anyRequest().authenticated()
@@ -59,7 +62,8 @@ public class SecurityConfig {
                         )
                         .successHandler(oAuth2SuccessHandler)
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new GuestAuthenticationFilter(userRepository), JwtAuthenticationFilter.class);
 
         return http.build();
     }

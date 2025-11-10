@@ -20,12 +20,7 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         if (userRepository.count() > 0) return;
 
-        User admin = User.builder()
-                .nickname("Admin")
-                .email("admin@mutr.com")
-                .oauthId("google_123")
-                .provider("google")
-                .build();
+        User admin = User.of("google_123", "admin@mutr.com", "Admin", "google");
         userRepository.save(admin);
 
         Node rootNode = Node.builder()
