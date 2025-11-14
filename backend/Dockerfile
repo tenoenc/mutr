@@ -6,7 +6,7 @@ COPY backend/gradle gradle
 COPY backend/build.gradle .
 COPY backend/settings.gradle .
 
-COPY proto/ ./proto/
+COPY proto/ ../proto/
 
 COPY backend/mutr-app mutr-app
 COPY backend/mutr-auth mutr-auth

@@ -17,7 +17,7 @@ FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # 컨텍스트 내부로 옮긴 nginx.conf 복사
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
