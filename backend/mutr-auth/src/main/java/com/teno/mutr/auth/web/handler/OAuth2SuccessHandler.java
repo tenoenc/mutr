@@ -6,10 +6,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 
@@ -24,11 +25,19 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
         String token = tokenProvider.createToken(authentication);
+        
+        // 1. 쿠키 생성 (임시 전달용이므로 만료 시간을 짧게 설정) 
+        ResponseCookie cookie = ResponseCookie.from("accessToken", token)
+                .path("/")
+                .httpOnly(false)
+                .maxAge(60)
+                .sameSite("Lax")
+                .build();
+        
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        // 프론트엔드 주소로 토큰과 함께 리다이렉트 (실제 운영 시에는 쿠키 방식으로 전환)
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/redirect")
-                .queryParam("token", token)
-                .build().toUriString();
+        // 2. 쿼리 파라미터 없이 순수 프론트엔드 주소로만 리다이렉트
+        String targetUrl = "http://localhost:5173";
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }

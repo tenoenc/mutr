@@ -35,39 +35,38 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
         // 유저 정보 추출 및 저장/업데이트
-        String email = (String) attributes.get("email");
-        String nickname = (String) attributes.get("name");
-        String oauthId = registrationId + "_" + attributes.get("sub");
+        String email = null;
+//        String nickname = null;
+        String oauthId = null;
 
         if ("google".equals(registrationId)) {
             email = (String) attributes.get("email");
-            nickname = (String) attributes.get("name");
+//            nickname = (String) attributes.get("name");
             oauthId = registrationId + "_" + attributes.get("sub");
         } else if ("kakao".equals(registrationId)) {
             Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
             Map<String, Object> kakaoProfile = (Map<String, Object>) kakaoAccount.get("profile");
 
             email = (String) kakaoAccount.get("email");
-            nickname = (String) kakaoProfile.get("nickname");
+//            nickname = (String) kakaoProfile.get("nickname");
             oauthId = registrationId + "_" + attributes.get(userNameAttributeName);
-
         }
 
-        User user = saveOrUpdate(oauthId, email, nickname, registrationId);
+        User user = saveOrUpdate(oauthId, email, registrationId);
 
         return new CustomUserDetails(user, attributes);
     }
 
-    private User saveOrUpdate(String oauthId, String email, String nickname, String provider) {
-        User user = userRepository.findByOauthId(oauthId)
-                .map(entity -> {
-                    entity.updateNickname(nickname);
-                    return entity;
-                })
-                .orElse(User.of(oauthId, email, nickname, provider));
+    private User saveOrUpdate(String oauthId, String email, String provider) {
+        User user = userRepository.findByOauthId(oauthId).orElseGet(() -> {
+            String nickname;
+            do {
+                nickname = NicknameGenerator.generate();
+            } while (userRepository.existsByNickname(nickname));
+            return User.of(oauthId, email, nickname, provider);
+        });
 
         return userRepository.save(user);
     }
-
 
 }
