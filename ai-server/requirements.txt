@@ -1,0 +1,13 @@
+grpcio==1.68.1
+grpcio-tools==1.68.1
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1
+torchaudio==2.5.1
+torchvision==0.20.1
+transformers==4.46.3
+sentence-transformers==3.3.1
+llama-cpp-python==0.3.1
+numpy<2.0.0
+pydantic==2.10.2
+huggingface-hub==0.26.2
+tqdm==4.67.1

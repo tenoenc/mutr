@@ -72,7 +72,7 @@ function GalaxyScene() {
      * fetchNearby: 현재 좌표를 기준으로 일정 범위 내의 노드 데이터를 서버에서 조회
      */
     const fetchNearby = useCallback((currentPos) => {
-        api.get('/api/v1/nodes/viz', {
+        api.get('/v1/nodes/viz', {
             params: { x: currentPos.x, y: currentPos.y, z: currentPos.z, range: 1000 }
         }).then(res => {
             const serverNodes = res.data.data || [];

@@ -16,7 +16,8 @@ const HeaderNickname = () => {
    * @param {string} provider - 소셜 서비스 이름 (google, kakao 등)
    */
   const handleLogin = (provider) => {
-    window.location.href = `http://localhost:8080/oauth2/authorization/${provider}`;
+    // window.location.href = `http://localhost:8080/oauth2/authorization/${provider}`;
+    window.location.href = `/oauth2/authorization/${provider}`;
   };
 
   return (

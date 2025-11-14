@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 public class AiAnalysisService {
     private final GrpcAiClient grpcAiClient;
 
-    public AnalysisResult analyze(String content, String parentSummary, String fullContext) {
-        return grpcAiClient.call(content, parentSummary, fullContext);
+    public AnalysisResult analyze(String content, String parentTopic, String baselineTopic, String fullContext) {
+        return grpcAiClient.call(content, parentTopic, baselineTopic, fullContext);
     }
 }

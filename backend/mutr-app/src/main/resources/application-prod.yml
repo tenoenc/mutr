@@ -1,0 +1,38 @@
+app:
+  frontend-url: ${FRONTEND_URL:https://www.mutr.com}
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        # 운영 환경 대량 처리를 위한 설정 유지
+        default_batch_fetch_size: 100
+
+  # 커넥션 풀 최적화 (HikariCP)
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+
+logging:
+  level:
+    root: INFO
+    # 애플리케이션 로직 로그만 INFO 수준으로 유지
+    com.teno.mutr: INFO
+    # SQL 파라미터 및 쿼리 로그는 성능 저하와 데이터 유출 위험으로 끔
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+grpc:
+  client:
+    mutr-ai-engine:
+      # gRPC 연결 유지 설정 강화 (운영 환경 타임아웃 방지)
+      keep-alive-time: 30s
+      keep-alive-timeout: 10s

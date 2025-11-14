@@ -20,6 +20,20 @@ dependencies {
 def grpcDir = layout.buildDirectory.dir("generated/source/proto/main/grpc").get().asFile
 def protoJavaDir = layout.buildDirectory.dir("generated/source/proto/main/java").get().asFile
 
+tasks.withType(JavaCompile) {
+    dependsOn 'generateProto'
+}
+
+tasks.register('copyProto', Copy) {
+    from "../../proto"
+    into "src/main/proto"
+}
+
+project.afterEvaluate {
+    tasks.findByName('generateProto')?.dependsOn copyProto
+    tasks.findByName('processResources')?.dependsOn copyProto
+}
+
 sourceSets {
     main {
         java {

@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
     
         // 기존 정보가 없는 경우 서버에 새로운 게스트 아이디 발급 요청
         try {
-            const res = await api.post('/api/v1/auth/guest');
+            const res = await api.post('/v1/auth/guest');
             const { guestToken, nickname } = res.data.data;
             
             // 발급받은 정보를 로컬 스토리지에 저장 및 상태 반영
@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }) => {
         if (currentMemberToken) {
             try {
                 // 토큰이 있다면 서버에 내 정보 조회를 요청하여 유효성 검증
-                const res = await api.get('/api/v1/users/me'); 
+                const res = await api.get('/v1/users/me'); 
                 setUser({ ...res.data.data, isMember: true });
             } catch (err) {
                 // 토큰이 만료되었거나 유효하지 않은 경우 로그아웃 처리 후 게스트로 전환

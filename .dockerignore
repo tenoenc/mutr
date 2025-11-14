@@ -1,0 +1,17 @@
+# AI 모델 및 캐시 제외
+ai-server/models/
+ai-server/.cache/
+**/__pycache__/
+
+# 다른 서비스의 무거운 파일들 제외
+**/node_modules/
+**/dist/
+**/.gradle/
+**/build/
+
+# 기타 불필요한 파일
+.git/
+.idea/
+.vscode/
+.env
+*.log

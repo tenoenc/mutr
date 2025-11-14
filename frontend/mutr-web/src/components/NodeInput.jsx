@@ -45,7 +45,8 @@ export default function NodeInput({ camera, selectedNode, onNodeCreated, onMoveT
       };
 
       // API 서버로 노드 생성 요청 전송
-      const response = await api.post('http://localhost:8080/api/v1/nodes', requestBody);
+      // const response = await api.post('http://localhost:8080/api/v1/nodes', requestBody);
+      const response = await api.post('/v1/nodes', requestBody);
   
       const newNode = response.data.data || response.data;
       setContent(""); // 입력창 초기화
