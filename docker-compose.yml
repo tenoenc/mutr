@@ -1,7 +1,8 @@
 services:
   mutr-db:
     image: postgres:17-alpine
-    container_name: mutr-db
+    # 블루/그린 배포 시 컨테이너 이름 충돌을 막기 위해 고정 이름 제거
+    # container_name: mutr-db 
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USERNAME}
@@ -10,33 +11,37 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - mutr_db_data:/var/lib/postgresql/data
+    networks:
+      - mutr-network
     restart: always
 
   backend:
     build:
       context: .
       dockerfile: ./backend/Dockerfile
-    container_name: mutr-backend
+    # container_name: mutr-backend
     env_file: .env
     depends_on:
       - mutr-db
       - ai-server
     environment:
-      # SPRING_JPA_HIBERNATE_DDL_AUTO: create
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_DATASOURCE_URL: jdbc:postgresql://mutr-db:${DB_PORT}/${DB_NAME} # 호스트는 DB 서비스 이름과 동일해야 함
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       GRPC_CLIENT_MUTR_AI_ENGINE_ADDRESS: static://ai-server:${AI_SERVER_PORT:-50051}  # 호스트는 AI 서비스 이름과 동일해야 함
       APP_FRONTEND_URL: ${FRONTEND_URL}
     ports:
-      - "${BACKEND_HOST_PORT:-8080}:8080"
+      - "${TARGET_BACKEND_PORT:-8080}:${INTERNAL_BACKEND_PORT:-8080}"
+    networks:
+      - mutr-network
     restart: always
   
   ai-server:
     build:
       context: .
       dockerfile: ./ai-server/Dockerfile
-    container_name: mutr-ai-server
+    # container_name: mutr-ai-server
     ports:
       - "${AI_SERVER_PORT:-50051}:50051"
     environment:
@@ -50,18 +55,24 @@ services:
       # 2. Hugging Face 모델 캐시용 볼륨 (RoBERTa, SBERT 용)
       # 컨테이너가 삭제되어도 다시 다운로드하지 않게 저장
       - ai_model_cache:/root/.cache/huggingface
+    networks:
+      - mutr-network
     restart: always
 
   frontend:
     build:
       context: ./frontend/mutr-web
       dockerfile: Dockerfile
-    container_name: mutr-frontend
+    # container_name: mutr-frontend
     environment:
-      BACKEND_HOST_PORT: ${BACKEND_HOST_PORT:-8080}
+      INTERNAL_BACKEND_PORT: ${INTERNAL_BACKEND_PORT:-8080}
       DOMAIN_NAME: ${DOMAIN_NAME}
+    ports:
+      - "${TARGET_FRONTEND_PORT:-3000}:80"
     volumes:
       - ./frontend/mutr-web/nginx.conf.template:/etc/nginx/templates/default.conf.template
+    networks:
+      - mutr-network
     depends_on:
       - backend
     restart: always
@@ -69,3 +80,8 @@ services:
 volumes:
   ai_model_cache:
   mutr_db_data:
+
+networks:
+  mutr-network:
+    name: mutr-shared-network
+    driver: bridge

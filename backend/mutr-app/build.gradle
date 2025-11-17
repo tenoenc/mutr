@@ -9,8 +9,6 @@ dependencies {
 
     // 서버 구동을 위한 핵심 의존성
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    // Redis는 나중에 소켓 세션 공유나 캐싱을 위해 전역적으로 쓰일 가능성이 높으니 app이나 core에 두는 것이 적절하다.
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // 모니터링 및 개발 편의
     implementation 'org.springframework.boot:spring-boot-starter-actuator'

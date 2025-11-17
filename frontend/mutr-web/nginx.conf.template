@@ -10,7 +10,7 @@ server {
 
     # 일반 API 요청 프록시
     location /api/ {
-        proxy_pass http://backend:${BACKEND_HOST_PORT};
+        proxy_pass http://backend:${INTERNAL_BACKEND_PORT};
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -18,7 +18,7 @@ server {
 
     # 웹소켓(STOMP/SockJS) 요청 프록시
     location /ws-mutr/ {
-        proxy_pass http://backend:${BACKEND_HOST_PORT};
+        proxy_pass http://backend:${INTERNAL_BACKEND_PORT};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade; # 웹소켓 업그레이드 헤더
         proxy_set_header Connection "Upgrade";  # 웹소켓 연결 유지 헤더
@@ -32,7 +32,7 @@ server {
 
     # 소셜 로그인 요청 프록시 
     location ~ ^/(oauth2|login)/ {
-        proxy_pass http://backend:${BACKEND_HOST_PORT};
+        proxy_pass http://backend:${INTERNAL_BACKEND_PORT};
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

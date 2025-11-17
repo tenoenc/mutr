@@ -11,12 +11,12 @@ export default defineConfig(({ mode }) => {
   const isLocal  = mode === 'development'
   const env = loadEnv(mode, path.resolve(__dirname, '../../'), '');
 
-  const localBackendUrl = `http://${env.BACKEND_HOST || 'localhost'}:${env.BACKEND_HOST_PORT || '8080'}`;
+  const localBackendUrl = `http://${env.BACKEND_HOST || 'localhost'}:${env.INTERNAL_BACKEND_PORT || '8080'}`;
 
   return {
     plugins: [react()],
     server: {
-      port: isLocal ? 5173 : (parseInt(env.FRONTEND_HOST_PORT) || 3000),
+      port: isLocal ? 5173 : 3000,
       proxy: isLocal ? {
         // 로컬에서 /api로 시작하는 요청을 백엔드(8080)로 전달
         '/api': {
@@ -37,7 +37,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       'process.env.FRONTEND_URL': JSON.stringify(
-        `http://${env.FRONTEND_HOST || 'localhost'}:${isLocal ? '5173' : (env.FRONTEND_HOST_PORT || '3000')}`
+        isLocal ? 'http://localhost:5173' : env.FRONTEND_URL
       ),
     }
   };
