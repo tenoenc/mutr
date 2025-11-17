@@ -1,27 +1,45 @@
 server {
     listen 80;
+    server_name ${DOMAIN_NAME};
 
-    # 1. 프론트엔드 정적 파일 서빙
+    # Certbot 인증을 위한 경로
+    location /.well-known/acme-challenge/ {
+        root /var/lib/letsencrypt;
+    }
+
+    # 모든 HTTP 요청을 HTTPS로 리다이렉트
     location / {
-        root   /usr/share/nginx/html;
-        index  index.html index.htm;
-        # SPA 라우팅 대응: 파일이 없으면 index.html을 반환
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name ${DOMAIN_NAME};
+
+    # SSL 인증서 경로 (Certbot이 발급 후 이 위치에 저장합니다)
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem;
+
+    # 보안 설정
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html index.htm;
         try_files $uri $uri/ /index.html;
     }
 
-    # 2. 일반 API 요청 프록시
-    # 프론트엔드에서 /api/v1/... 로 요청을 보내면 backend:8080으로 전달합니다.
+    # 일반 API 요청 프록시
     location /api/ {
-        # docker-compose.yml에 정의된 서비스 이름 'backend'를 사용합니다.
         proxy_pass http://backend:${BACKEND_HOST_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        
-        # CORS 에러 방지를 위한 헤더 설정
-        add_header 'Access-Control-Allow-Origin' '*' always;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # 3. 웹소켓(STOMP/SockJS) 요청 프록시
+    # 웹소켓(STOMP/SockJS) 요청 프록시
     location /ws-mutr/ {
         proxy_pass http://backend:${BACKEND_HOST_PORT};
         proxy_http_version 1.1;
@@ -35,7 +53,7 @@ server {
         proxy_send_timeout 86400s;
     }
 
-    # 4. 소셜 로그인 요청 프록시 
+    # 소셜 로그인 요청 프록시 
     location ~ ^/(oauth2|login)/ {
         proxy_pass http://backend:${BACKEND_HOST_PORT};
         proxy_set_header Host $host;
@@ -45,7 +63,7 @@ server {
         proxy_set_header X-Forwarded-Port $server_port;
     }
 
-    # 5. 에러 페이지 설정
+    # 에러 페이지 설정
     error_page   500 502 503 504  /50x.html;
     location = /50x.html {
         root   /usr/share/nginx/html;
