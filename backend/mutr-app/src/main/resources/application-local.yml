@@ -1,0 +1,13 @@
+app:
+  frontend-url: http://localhost:5173
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mutr
+    username: mutr_admin
+    password: 1234
+
+grpc:
+  client:
+    mutr-ai-engine:
+      address: 'static://localhost:50051'

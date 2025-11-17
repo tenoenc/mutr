@@ -1,0 +1,18 @@
+# Gradle & Java
+.gradle/ 
+build/
+**/build/
+*.class
+
+# 모든 .jar 파일은 무시하되
+*.jar
+
+# Gradle wrapper 파일만은 무시하지 않음 (예외 설정)
+!gradle/wrapper/gradle-wrapper.jar
+
+# Generated Sources
+generated/
+**/generated/
+
+# Test Reports
+reports/

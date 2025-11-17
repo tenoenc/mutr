@@ -1,27 +1,37 @@
-# Python 캐시 및 바이트코드
-__pycache__/
+# Editor directories
+.vscode
+.idea
+
+# Python bytecode
+__pycache__/ 
 *.py[cod]
 *$py.class
 
-# 라이브러리 캐시
-.cache/
-models/
-
-# gRPC 자동 생성 파일
-mutr_analysis_pb2.py
-mutr_analysis_pb2_grpc.py
-
-# 환경 설정 및 가상환경
-.venv/
+# Virtual Environment
 venv/
-ENV/
-.env
+.venv/
+env/
+bin/
+lib/
 
-# 테스트 및 백업 파일
-*test.py
+# AI Models & Data (Large files)
+models/ 
+data/
+*.pt
+*.pth
+*.h5
+*.onnx
+
+# Application Cache
+.cache/
+
+# gRPC
+*pb2*.py
+
+# Other Files
 *backup.py
-
-# OS 및 에디터 설정
-.DS_Store
-.vscode/
-.idea/
+guardrail.py
+mutation.py
+sentiment.py
+summary.py
+test.py
