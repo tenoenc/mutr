@@ -1,0 +1,12 @@
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+  frontend:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/lib/letsencrypt
+      - ./frontend/mutr-web/nginx.prod.conf.template:/etc/nginx/templates/default.conf.template

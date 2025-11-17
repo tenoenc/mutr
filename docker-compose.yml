@@ -22,11 +22,12 @@ services:
       - mutr-db
       - ai-server
     environment:
+      # SPRING_JPA_HIBERNATE_DDL_AUTO: create
       SPRING_DATASOURCE_URL: jdbc:postgresql://mutr-db:${DB_PORT}/${DB_NAME} # 호스트는 DB 서비스 이름과 동일해야 함
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       GRPC_CLIENT_MUTR_AI_ENGINE_ADDRESS: static://ai-server:${AI_SERVER_PORT:-50051}  # 호스트는 AI 서비스 이름과 동일해야 함
-      APP_FRONT_URL: ${FRONTEND_URL}
+      APP_FRONTEND_URL: ${FRONTEND_URL}
     ports:
       - "${BACKEND_HOST_PORT:-8080}:8080"
     restart: always
@@ -56,16 +57,11 @@ services:
       context: ./frontend/mutr-web
       dockerfile: Dockerfile
     container_name: mutr-frontend
-    ports:
-      - "${FRONTEND_HOST_PORT:-3000}:80"
-      # - "80:80"
-      # - "443:443"
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/lib/letsencrypt
     environment:
       BACKEND_HOST_PORT: ${BACKEND_HOST_PORT:-8080}
       DOMAIN_NAME: ${DOMAIN_NAME}
+    volumes:
+      - ./frontend/mutr-web/nginx.conf.template:/etc/nginx/templates/default.conf.template
     depends_on:
       - backend
     restart: always
