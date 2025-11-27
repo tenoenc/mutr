@@ -1,8 +1,12 @@
 services:
   backend:
+    image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_REPO_NAME}/backend:latest
+    build: !!null
     environment:
       SPRING_PROFILES_ACTIVE: prod
   frontend:
+    image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_REPO_NAME}/frontend:latest
+    build: !!null
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/lib/letsencrypt
