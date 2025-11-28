@@ -48,6 +48,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+    
       # 설정 파일들만 서버로 전송 (SCP)
       - name: Copy config files via SCP
         uses: appleboy/scp-action@v0.1.7
