@@ -37,13 +37,13 @@ export TARGET_FRONTEND_PORT=$TARGET_FRONTEND_PORT
 echo ">>> $TARGET_COLOR 환경 컨테이너 빌드 및 실행 중..."
 
 # 3-1. 모든 최신 이미지 가져오기
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
 
 # 3-2. AI 서버 업데이트 (이미지가 변경된 경우에만 재시작됨)
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d ai-server
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d ai-server
 
 # 3-3. 블루/그린 타겟 앱 실행
-docker-compose -p mutr-$TARGET_COLOR -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps backend frontend
+docker compose -p mutr-$TARGET_COLOR -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps backend frontend
 
 # 4. 헬스 체크 (Health Check)
 # Spring Boot Actuator의 /actuator/health를 사용합니다.
@@ -60,7 +60,7 @@ for i in {1..15}; do
 
     if [ $i -eq 15 ]; then
         echo ">>> 배포 실패: 신규 서버가 150초 이내에 응답하지 않습니다."
-        docker-compose -f docker-compose.yml -f docker-compose.prod.yml stop backend frontend # 실패 시 신규 컨테이너 중지
+        docker compose -f docker-compose.yml -f docker-compose.prod.yml stop backend frontend # 실패 시 신규 컨테이너 중지
         exit 1
     fi
     echo ">>> 아직 서버가 준비되지 않았습니다. 대기 중... ($i/15)"
@@ -85,8 +85,8 @@ echo ">>> Nginx 스위칭 완료!"
 echo ">>> 10초 후 이전 버전($BEFORE_COLOR) 컨테이너를 정리합니다."
 sleep 10
 # 특정 프로젝트의 특정 서비스만 중지하고 삭제
-docker-compose -p mutr-$BEFORE_COLOR stop backend frontend
-docker-compose -p mutr-$BEFORE_COLOR rm -f backend frontend
+docker compose -p mutr-$BEFORE_COLOR stop backend frontend
+docker compose -p mutr-$BEFORE_COLOR rm -f backend frontend
 # 서비스 중이지 않은 포트의 기존 컨테이너를 찾아서 삭제합니다.
 # 이 단계는 수동으로 검증될 때까지 주석 처리해두고 사용합니다.
 # docker ps -a | grep "backend" | grep "8080" | awk '{print $1}' | xargs -r docker rm -f
