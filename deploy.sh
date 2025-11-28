@@ -37,7 +37,7 @@ export TARGET_FRONTEND_PORT=$TARGET_FRONTEND_PORT
 echo ">>> $TARGET_COLOR 환경 컨테이너 빌드 및 실행 중..."
 
 # 블루/그린 프로젝트 이름(-p)을 사용하여 앱만 실행
-docker-compose -p mutr-$TARGET_COLOR -f docker-compose.yml -f docker-compose.prod.yml up --build -d --no-deps backend frontend
+docker-compose -p mutr-$TARGET_COLOR -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps backend frontend
 
 # 4. 헬스 체크 (Health Check)
 # Spring Boot Actuator의 /actuator/health를 사용합니다.
