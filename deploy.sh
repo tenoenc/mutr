@@ -36,10 +36,13 @@ export TARGET_FRONTEND_PORT=$TARGET_FRONTEND_PORT
 
 echo ">>> $TARGET_COLOR 환경 컨테이너 빌드 및 실행 중..."
 
-# 먼저 이미지를 당겨옵니다. 이게 있어야 빌드를 안 합니다.
+# 3-1. 모든 최신 이미지 가져오기
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
 
-# 블루/그린 프로젝트 이름(-p)을 사용하여 앱만 실행
+# 3-2. AI 서버 업데이트 (이미지가 변경된 경우에만 재시작됨)
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d ai-server
+
+# 3-3. 블루/그린 타겟 앱 실행
 docker-compose -p mutr-$TARGET_COLOR -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps backend frontend
 
 # 4. 헬스 체크 (Health Check)
