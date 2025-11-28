@@ -75,10 +75,13 @@ jobs:
           script: |
             # 1. 프로젝트 폴더로 이동
             cd ~/mutr
+
+            # 2. Docker가 GCP Artifact Registry에 접근할 수 있게 인증 설정
+            gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
             
-            # 2. 저장소에서 이미지 가져오기
+            # 3. 저장소에서 이미지 가져오기
             docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
             
-            # 3. 블루-그린 무중단 배포 스크립트 실행
+            # 4. 블루-그린 무중단 배포 스크립트 실행
             chmod +x deploy.sh
             ./deploy.sh
