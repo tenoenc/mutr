@@ -25,7 +25,7 @@ services:
       - mutr-db
       - ai-server
     environment:
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      # SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_DATASOURCE_URL: jdbc:postgresql://mutr-db:${DB_PORT}/${DB_NAME} # 호스트는 DB 서비스 이름과 동일해야 함
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}

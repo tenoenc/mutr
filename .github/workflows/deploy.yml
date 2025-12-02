@@ -119,3 +119,16 @@ jobs:
             # 4. 블루-그린 무중단 배포 스크립트 실행
             chmod +x deploy.sh
             ./deploy.sh
+
+      # Discord 채널에 배포 결과 알림 전송
+      - name: Send Notification to Discord
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: ${{ job.status }}
+          title: "MUTR 배포 결과: ${{ job.status }}"
+          description: |
+            **커밋 메시지:** ${{ github.event.head_commit.message }}
+            **실행자:** ${{ github.actor }}
+            [로그 확인하기](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
