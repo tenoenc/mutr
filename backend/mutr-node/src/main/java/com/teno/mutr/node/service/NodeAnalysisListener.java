@@ -15,25 +15,44 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Component
 @RequiredArgsConstructor
 public class NodeAnalysisListener {
     private final AiAnalysisService aiAnalysisService;
     private final NodeRepository nodeRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final AnalysisCoordinator coordinator;
 
     @Async
     @EventListener
     @Transactional
     public void handleNodeCreated(NodeCreateEvent event) {
-        // 1. AI 분석 수행
-        AnalysisResult result = aiAnalysisService.analyze(event.content(), event.parentTopic(), event.baselineTopic(),
-                event.fullContext());
+        // 부모가 준비되었는지 확인 후 처리 혹은 대기
+        if (coordinator.isReady(event.parentId())) {
+            processAnalysis(event);
+        } else {
+            coordinator.hold(event.parentId(), event);
+        }
+    }
 
-        // 2. 타입 변환 (안정성 확보)
+    private void processAnalysis(NodeCreateEvent event) {
+        // 1. 최신 부모 토픽 조회 (부모가 막 분석을 끝냈으므로 DB에서 가져옴)
+        String latestParentTopic = "";
+        if (event.parentId() != null) {
+            latestParentTopic = nodeRepository.findById(event.parentId())
+                    .map(Node::getTopic).orElse("");
+        }
+
+        // 2. AI 분석 수행 (부모 토픽 전달 보장)
+        AnalysisResult result = aiAnalysisService.analyze(
+                event.content(), latestParentTopic, event.baselineTopic(), event.fullContext()
+        );
+
         Emotion validatedEmotion = Emotion.from(result.emotion());
 
-        // 3. 정체성 확정
+        // 3. 노드 정체성 확정 및 저장
         Node node = nodeRepository.findById(event.nodeId()).orElseThrow();
         node.defineIdentity(
                 result.topic(),
@@ -41,8 +60,15 @@ public class NodeAnalysisListener {
                 validatedEmotion,
                 result.confidence()
         );
+        nodeRepository.save(node);
 
-        // 4. 완성된 노드 알림 전송
+        // 4. 실시간 알림 전송
         messagingTemplate.convertAndSend("/topic/galaxy/public", NodeResponse.from(node));
+
+        // 5. 자신을 기다리는 자식들이 있다면 연쇄 실행
+        List<NodeCreateEvent> waitingChildren = coordinator.complete(node.getId());
+        if (waitingChildren != null) {
+            waitingChildren.forEach(this::processAnalysis);
+        }
     }
 }

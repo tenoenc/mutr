@@ -36,6 +36,7 @@ public class NodeService {
     public NodeResponse createNode(User user, NodeCreateRequest request) {
         // 1. 초기값 설정
         Node parent = null;
+        Long parentId = null;
         String parentTopic = "";
         String baselineTopic = "";
         String fullContext = "";
@@ -45,6 +46,7 @@ public class NodeService {
             parent = nodeRepository.findById(request.parentId()).orElseThrow(() ->
                     new IllegalArgumentException("노드가 존재하지 않습니다."));
 
+            parentId = parent.getId();
             parentTopic = parent.getTopic();
         }
 
@@ -76,7 +78,7 @@ public class NodeService {
 
         // 7. AI 엔진 호출 (gRPC 통신)
         eventPublisher.publishEvent(new NodeCreateEvent(
-                node.getId(), node.getContent(), parentTopic, baselineTopic, fullContext
+                node.getId(), parentId, node.getContent(), parentTopic, baselineTopic, fullContext
         ));
 
         // 8. 실시간 브로드캐스팅 및 응답 반환
