@@ -1,8 +1,12 @@
 services:
+  mutr-redis:
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+
   backend:
     image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_REPO_NAME}/backend:latest
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
   frontend:
     image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_REPO_NAME}/frontend:latest
     volumes:

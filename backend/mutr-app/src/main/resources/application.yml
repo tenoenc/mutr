@@ -54,6 +54,12 @@ spring:
         format_sql: true
         default_batch_fetch_size: 100 # JSONB 타입 지원을 위한 설정
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
 logging:
   level:
     org.hibernate.SQL: DEBUG
