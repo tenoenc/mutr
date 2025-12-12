@@ -56,8 +56,6 @@ services:
       - "${AI_SERVER_PORT:-50051}:50051"
     environment:
       AI_SERVER_PORT: ${AI_SERVER_PORT}
-      n_gpu_layers: 0
-      n_threads: 4
     volumes:
       # 1. GGUF 모델용 볼륨
       - ./ai-server/models:/app/models
