@@ -1,6 +1,7 @@
 package com.teno.mutr.node.domain.repository;
 
 import com.teno.mutr.node.domain.entity.Node;
+import com.teno.mutr.node.domain.vo.AnalysisStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +33,6 @@ public interface NodeRepository extends JpaRepository<Node, Long> {
         FROM node_trace
        """, nativeQuery = true)
     Optional<AnalysisContextProjection> findAnalysisContext(@Param("nodeId") Long nodeId);
+
+    List<Node> findAllByAnalysisStatusIn(List<AnalysisStatus> analysisStatusList);
 }

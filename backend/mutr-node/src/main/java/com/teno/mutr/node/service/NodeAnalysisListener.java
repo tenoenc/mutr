@@ -10,6 +10,7 @@ import com.teno.mutr.node.domain.vo.MutationInfo;
 import com.teno.mutr.node.web.dto.NodeResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -28,6 +29,7 @@ public class NodeAnalysisListener {
     private final NodeRepository nodeRepository;
     private final RedisAnalysisCoordinator coordinator;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Async
     @EventListener
@@ -46,28 +48,30 @@ public class NodeAnalysisListener {
 
     private void processAnalysis(NodeCreateEvent event) {
         try {
-            // 1. 이벤트에 부모 토픽이 없으면 준비된 부모로부터 토픽 조회
+            // 1. 영속성 컨텍스트 관리 및 분석 시작 처리
+            Node node = nodeRepository.findById(event.nodeId()).orElseThrow();
+            node.beginAnalysis();
+
+            // 2. 이벤트에 부모 토픽이 없으면 준비된 부모로부터 토픽 조회
             String parentTopic = event.parentTopic();
             if ((parentTopic == null || parentTopic.isBlank() && event.parentId() != null)) {
                 parentTopic = nodeRepository.findById(event.parentId()).map(Node::getTopic).orElse("");
             }
 
-            // 2. AI 분석 수행 (부모 토픽 전달 보장)
+            // 3. AI 분석 수행 (부모 토픽 전달 보장)
             AnalysisResult result = aiAnalysisService.analyze(
                     event.content(), parentTopic, event.baselineTopic(), event.fullContext()
             );
 
-            // 3. 노드 정체성 확정 및 저장
-            Node node = nodeRepository.findById(event.nodeId()).orElseThrow();
-            node.defineIdentity(
+            // 4. 분석 완료 처리 및 저장
+            node.completeAnalysis(
                     result.topic(),
                     MutationInfo.mutate(result.mutationScore()),
                     Emotion.from(result.emotion()),
                     result.confidence()
             );
-            nodeRepository.save(node);
 
-            // 4. 현재 트랜잭션이 커밋된 직후에만 실시간 알림 전송이 실행되도록 예약
+            // 5. 현재 트랜잭션이 커밋된 직후에만 실시간 알림 전송이 실행되도록 예약
             if (TransactionSynchronizationManager.isActualTransactionActive()) {
                 // 안전하게 커밋 기다리기
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -84,10 +88,12 @@ public class NodeAnalysisListener {
         } catch (Exception e) {
             log.error("분석 실패 [노드: {}]: {}", event.nodeId(), e.getMessage());
         } finally {
-            // 성공/실패 여부와 상관없이 자신을 기다리는 자식들을 해제 (Deadlock 방지)
+            // 6. 성공/실패 여부와 상관없이 자신을 기다리는 자식들을 해제 (Deadlock 방지)
             List<NodeCreateEvent> children = coordinator.complete((event.nodeId()));
             if (children != null) {
-                children.forEach(this::processAnalysis);
+                // 자식 노드들을 독립적인 이벤트로 깨움
+                // 직접 호출 방식은 부모의 스레드와 트랜잭션을 자식들이 뺏어서 쓰는 구조라 위험
+                children.forEach(eventPublisher::publishEvent);
             }
         }
     }
