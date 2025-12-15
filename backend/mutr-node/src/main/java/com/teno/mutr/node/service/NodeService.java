@@ -16,6 +16,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -36,18 +38,13 @@ public class NodeService {
     public NodeResponse createNode(User user, NodeCreateRequest request) {
         // 1. 초기값 설정
         Node parent = null;
-        Long parentId = null;
-        String parentTopic = "";
-        String baselineTopic = "";
-        String fullContext = "";
+        final String baselineTopic;
+        final String fullContext;
 
         // 2. 부모 노드 조회
         if (request.parentId() != null) {
             parent = nodeRepository.findById(request.parentId()).orElseThrow(() ->
                     new IllegalArgumentException("노드가 존재하지 않습니다."));
-
-            parentId = parent.getId();
-            parentTopic = parent.getTopic();
         }
 
         // 3. 좌표 결정
@@ -78,7 +75,12 @@ public class NodeService {
 
         // 7. AI 엔진 호출 (gRPC 통신)
         eventPublisher.publishEvent(new NodeCreateEvent(
-                node.getId(), parentId, node.getContent(), parentTopic, baselineTopic, fullContext
+                node.getId(),
+                node.getParentId(),
+                node.getContent(),
+                node.getParentTopic(),
+                baselineTopic,
+                fullContext
         ));
 
         // 8. 실시간 브로드캐스팅 및 응답 반환
