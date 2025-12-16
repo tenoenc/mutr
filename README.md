@@ -259,7 +259,9 @@ server {
 
 AI 서버는 전역 락(`llm_lock`)을 사용하여 요청을 순차적으로 처리하고 있습니다. 따라서 백엔드에서 무작위로 비동기 요청을 보내면, AI 서버의 큐에 먼저 들어간 자식 노드가 아직 분석되지 않은 부모 노드를 참조하게 되는 구조적 불일치가 발생합니다.
 
-### 접근 방법: 의존성 체이닝
+### 접근 방법
+
+#### 1. 의존성 체이닝
 
 가장 효율적인 방식은 부모의 분석 완료가 자식의 분석 시작을 트리거 하는 구조입니다. 이는 불필요한 대기 시간이나 반복적인 DB 조회를 없애고, 데이터가 준비된 즉시 분석을 수행하게 합니다.
 
@@ -268,88 +270,31 @@ AI 서버는 전역 락(`llm_lock`)을 사용하여 요청을 순차적으로 �
 2. **대기열 등록**: 부모가 현재 분석 중이라면, 해당 부모 ID를 키로 하는 메모리 내 대기열(Wating Queue)에 자식 이벤트를 저장합니다.
 3. **연쇄 해제**: 부모 노드의 분석이 완료되는 시점에 자신을 기다리던 자식 노드들의 이벤트를 꺼내어 AI 서버로 보냅니다.
 
-```java
-@Component
-public class AnalysisCoordinator {
-    // Key: 부모 노드 ID, Value: 부모의 분석 완료를 기다리는 자식 노드 이벤트들
-    private final Map<Long, List<NodeCreateEvent>> waitingQueue = new ConcurrentHashMap<>();
+#### 2. Stateless
 
-    // 분석이 성공적으로 끝난 노드 ID를 추적
-    private final Set<Long> completeNodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
+운영 환경에서 블루-그린 배포로 인해 상태 정보를 개별 서버의 메모리가 아닌, 모든 서버가 공유할 수 있는 외부 저장소로 격리시키는 게 중요합니다. 여기에는 Redis, MQ, DB 등을 활용할 수 있는데, 구현이 비교적 쉬우면서도 성능을 확보할 수 있는 Redis를 선택하는 게 합리적입니다.
 
-    // 자식을 대기열에 추가
-    public void hold(Long parentId, NodeCreateEvent event) {
-        waitingQueue.computeIfAbsent(parentId, k -> new CopyOnWriteArrayList<>()).add(event);
-    }
+#### 3. State Machine + Redis
 
-    // 부모의 준비 상태 확인
-    public boolean isReady(Long parentId) {
-        if (parentId == null) return true;
-        return completeNodes.contains(parentId);
-    }
+Redis를 통해 Stateless를 달성할 수 있지만, 이를 어떻게 구현하느냐에 따라 시스템의 성능과 안정성이 결정됩니다. 단순히 DB를 매번 조회하면 읽기 성능이 떨어지고, 메모리에만 두면 정합성이 깨집니다. 이 둘의 절충안은 **"전달받은 힌트(Event) -> 분산 상태(Redis) -> 영속 데이터(DB)"** 순서로 확인하는 겁니다.
 
-    // 분석 완료 처리 및 대기 중인 자식 목록 반환
-    public List<NodeCreateEvent> complete(Long nodeId) {
-        completeNodes.add(nodeId);
-        return waitingQueue.remove(nodeId);
-    }
-}
-```
+**3단계 검증 로직**
+1. **이벤트 힌트 활용 (최고 성능)**: 이벤트 리스너에서 `parentTopic`이 있으면 즉시 AI 분석을 실행합니다. DB 조회나 Redis 확인 없이 메모리 값만 쓰므로 읽기 성능이 극대화됩니다.
+2. **Redis 분산 상태 확인 (중간 성능 & 정합성 보장)**: `parentTopic`이 비어 있다면, 부모 노드의 분석 상태를 Redis에서 확인합니다. 이는 메모리 속도로 진행되므로 성능 손실이 거의 없으며, 상태가 유지되어 정합성이 보장됩니다.
+3. **DB 최종 확인 (최종 안전 장치)**: Redis에도 정보가 없다면 마지막으로 DB에서 직접 부모의 `topic`을 조회합니다. 이는 배포 직후나 시스템 재시작 시 발생하는 데이터 유실을 막는 최종 안전 장치입니다.
 
-```java
-@Component
-@RequiredArgsConstructor
-public class NodeAnalysisListener {
-    private final AiAnalysisService aiAnalysisService;
-    private final NodeRepository nodeRepository;
-    private final SimpMessagingTemplate messagingTemplate;
-    private final AnalysisCoordinator coordinator;
+### 실전 구현 전략
 
-    @Async
-    @EventListener
-    @Transactional
-    public void handleNodeCreated(NodeCreateEvent event) {
-        // 부모가 준비되었는지 확인 후 처리 혹은 대기
-        if (coordinator.isReady(event.parentId())) {
-            processAnalysis(event);
-        } else {
-            coordinator.hold(event.parentId(), event);
-        }
-    }
+#### R/W 최적화
 
-    private void processAnalysis(NodeCreateEvent event) {
-        // 1. 최신 부모 토픽 조회 (부모가 막 분석을 끝냈으므로 DB에서 가져옴)
-        String latestParentTopic = "";
-        if (event.parentId() != null) {
-            latestParentTopic = nodeRepository.findById(event.parentId())
-                    .map(Node::getTopic).orElse("");
-        }
+`NodeService`에서는 노드 저장만 하고 AI 분석은 이벤트로 던져버립니다. 클라이언트는 분석을 기다리지 않고 즉시 응답을 받으므로 사용자 체감 성능이 좋습니다.
 
-        // 2. AI 분석 수행 (부모 토픽 전달 보장)
-        AnalysisResult result = aiAnalysisService.analyze(
-                event.content(), latestParentTopic, event.baselineTopic(), event.fullContext()
-        );
+`main.py`의 `llm_lock`에 의해 AI 서버가 병목이 생기더라도, 백엔드는 Redis 대기열을 통해 요청 순서를 부모 -> 자식 순으로 정렬하여 AI 서버로 보내 메모리 락을 방지합니다. 또한, `finally` 블록을 사용하여 분석이 실패하더라도 대기 중인 자식 노드들을 풀어줌으로써 시스템이 멈추는(Deadlock) 현상을 방지합니다.
 
-        Emotion validatedEmotion = Emotion.from(result.emotion());
+#### 클라이언트 오용 방지
 
-        // 3. 노드 정체성 확정 및 저장
-        Node node = nodeRepository.findById(event.nodeId()).orElseThrow();
-        node.defineIdentity(
-                result.topic(),
-                MutationInfo.mutate(result.mutationScore()),
-                validatedEmotion,
-                result.confidence()
-        );
-        nodeRepository.save(node);
+AI 분석이 완료된 후에는 클라이언트에서 변경된 노드의 상태를 반영할 수 있도록 웹 소켓 채널에 메시지를 전송합니다. 이 때, 트랜잭션이 커밋되지 않았는데 메시지를 전송하는 경우 클라이언트에서 잘못된 정보로 인해 부수 효과를 만들 수 있습니다. `TransactionSynchronizationManager`의 `registerSynchronization()`를 사용하여 변경된 노드의 상태를 보장하고, 클라이언트에 알림을 전송합니다.
 
-        // 4. 실시간 알림 전송
-        messagingTemplate.convertAndSend("/topic/galaxy/public", NodeResponse.from(node));
+#### 분석 자동 재개
 
-        // 5. 자신을 기다리는 자식들이 있다면 연쇄 실행
-        List<NodeCreateEvent> waitingChildren = coordinator.complete(node.getId());
-        if (waitingChildren != null) {
-            waitingChildren.forEach(this::processAnalysis);
-        }
-    }
-}
-```
+블루-그린 배포에서 AI 서버 또한 언제든 교체될 수 있기 때문에 분석이 진행중인 노드가 완료되지 못한 채로 남아있을 수 있습니다. 노드에 `analysis_status` 컬럼을 추가하고, 분석 진행 상태를 추적하여 서버 시작 시 유령 노드들을 복구하는 작업을 실시합니다.

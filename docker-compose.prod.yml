@@ -15,7 +15,8 @@ services:
   ai-server:
     image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_REPO_NAME}/ai-server:latest
     environment:
-      n_ctx: 512
+      n_ctx: 1024
       n_gpu_layers: 0
       n_threads: 2
       n_batch: 128
+      PYTHONUNBUFFERED: "1"

@@ -11,7 +11,6 @@ import com.teno.mutr.node.web.dto.NodeResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -45,6 +44,12 @@ public class NodeAnalysisListener {
         // 분석 시작 등록 (자식 노드가 생길 경우 자신을 기다리게 함)
         coordinator.start(event.nodeId());
 
+        // 루트 노드인 경우 분석 진행
+        if (event.parentId() == null) {
+            processAnalysis(event);
+            return;
+        }
+
         // 부모가 준비되었는지 확인 후 처리 혹은 대기
         if (coordinator.isReady(event.parentId(), event.parentTopic())) {
             processAnalysis(event);
@@ -61,7 +66,7 @@ public class NodeAnalysisListener {
 
             // 2. 이벤트에 부모 토픽이 없으면 준비된 부모로부터 토픽 조회
             String parentTopic = event.parentTopic();
-            if ((parentTopic == null || parentTopic.isBlank() && event.parentId() != null)) {
+            if ((parentTopic == null || parentTopic.isBlank()) && event.parentId() != null) {
                 parentTopic = nodeRepository.findById(event.parentId()).map(Node::getTopic).orElse("");
             }
 
@@ -96,7 +101,7 @@ public class NodeAnalysisListener {
             log.error("분석 실패 [노드: {}]: {}", event.nodeId(), e.getMessage());
         } finally {
             // 6. 성공/실패 여부와 상관없이 자신을 기다리는 자식들을 해제 (Deadlock 방지)
-            List<NodeCreateEvent> children = coordinator.complete((event.nodeId()));
+            List<NodeCreateEvent> children = coordinator.complete(event.nodeId());
             if (children != null) {
                 // 자식 노드들을 독립적인 이벤트로 깨움
                 // 직접 호출 방식은 부모의 스레드와 트랜잭션을 자식들이 뺏어서 쓰는 구조라 위험
