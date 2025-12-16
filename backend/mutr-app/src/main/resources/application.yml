@@ -71,7 +71,7 @@ grpc:
     mutr-ai-engine:
       # 1. 연결 주소 (프로토콜://호스트:포트)
       # 로컬 테스트 시 'static://' 접두사를 붙이는 것이 가장 안정적
-      address: 'static://${AI_SERVER_HOST:localhost}:${AI_SERVER_PORT:50051}'
+      address: 'static://${AI_SERVER_HOST:ai-server}:${AI_SERVER_PORT:50051}'
 
       # 2. 협상 유형 (보안 설정)
       # 개발 단계에서 SSL/TLS를 사용하지 않는다면 반드시 plaintext로 설정
@@ -83,5 +83,10 @@ grpc:
       keep-alive-timeout: 20s
       keep-alive-without-calls: false   # 요청이 없을 때는 핑을 보내지 않음
 
-      # 4. 메시지 크기 제한 (AI 분석 결과가 길어질 경우 대비)
+      # 4. 재시도 설정
+      enable-retry: true
+      max-retry-attempts: 5
+      initial-retry-delay: 2s
+
+      # 5. 메시지 크기 제한 (AI 분석 결과가 길어질 경우 대비)
       max-inbound-message-size: 10485760 # 10MB

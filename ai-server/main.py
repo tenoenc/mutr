@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 import re
 import grpc
+from grpc_health.v1 import health, health_pb2, health_pb2_grpc
 import numpy as np
 import threading
 from concurrent import futures
@@ -174,11 +175,31 @@ def download_model():
     return target_path
 
 def serve():
+    # 1. 서버 객체 생성
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    mutr_analysis_pb2_grpc.add_AnalysisServiceServicer_to_server(MUTRAnalysisServicer(), server)
+
+    # 2. 헬스체크 서비스 등록
+    health_servicer = health.HealthServicer()
+    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
+
+    # 초기 상태 설정: 아직 모델 로딩 전이므로 NOT_SERVING
+    health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
+
+    # 3. 포트 설정 및 서버 시작 (이 시점부터 외부에서 핑을 보낼 수 있음)
     server.add_insecure_port(f"[::]:{server_port}")
-    print(f"🚀 MUTR Bllossom AI Engine started on port {server_port}")
+    print(f"🚀 gRPC 서버가 포트 {server_port}에서 시작되었습니다. (모델 로딩 대기 중)")
     server.start()
+
+    # 4. 실제 무거운 모델 엔진 로드 (이게 사용자님의 load_model 역할입니다)
+    # MUTRAnalysisServicer가 생성될 때 내부에서 MUTRModelEngine을 만들며 모델들을 로드합니다.
+    print("⏳ AI 모델 엔진 로딩 시작...")
+    servicer = MUTRAnalysisServicer() 
+    mutr_analysis_pb2_grpc.add_AnalysisServiceServicer_to_server(servicer, server)
+
+    # 5. 로딩 완료 후 상태 변경: 이제 SERVING
+    print("✅ 모든 모델 로드 완료. 서비스 시작!")
+    health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
+
     server.wait_for_termination()
 
 if __name__ == "__main__":

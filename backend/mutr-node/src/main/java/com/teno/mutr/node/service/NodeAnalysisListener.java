@@ -37,11 +37,12 @@ public class NodeAnalysisListener {
     // 이벤트를 발행한 트랜잭션에서 커밋이 완료된 후에 이벤트가 실행됨을 보장
     // @EventListener 대신 @TransactionalEventListener을 사용하여
     // registerSynchronization 메서드로 인한 분기 로직 제거
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     // 부모 트랜잭션과 독립된 새로운 트랜잭션 시작 (기본값: REQUIRED (부모 트랜잭션에 합류))
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleNodeCreated(NodeCreateEvent event) {
         // 분석 시작 등록 (자식 노드가 생길 경우 자신을 기다리게 함)
+        log.info(">>> 이벤트 수신 완료: 노드 {}", event.nodeId());
         coordinator.start(event.nodeId());
 
         // 루트 노드인 경우 분석 진행
