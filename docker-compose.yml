@@ -56,8 +56,6 @@ services:
       - "${AI_SERVER_PORT:-50051}:50051"
     environment:
       AI_SERVER_PORT: ${AI_SERVER_PORT}
-      n_gpu_layers: 0
-      n_threads: 4
     volumes:
       # 1. GGUF 모델용 볼륨
       - ./ai-server/models:/app/models
@@ -67,6 +65,13 @@ services:
       - ai_model_cache:/root/.cache/huggingface
     networks:
       - mutr-network
+    healthcheck:
+      # grpc_health_probe 도구를 사용하여 50051 포트 체크
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: always
 
   frontend:

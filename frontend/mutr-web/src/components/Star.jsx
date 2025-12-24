@@ -42,21 +42,26 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const pos = [node.x ?? 0, node.y ?? 0, node.z ?? 0];
   const nodeIdString = node.id ? String(node.id) : "";
   const isRoot = node.id === node.rootId; // 최상위 노드 여부 확인
+  const isAnalyzing = node.analysisStatus == 'PENDING' || node.analysisStatus == "PROCESSING";
 
   // 메모이제이션을 통한 시각적 속성 최적화
-  const baseColor = useMemo(() => emotionColors[node.emotion] || "#90A4AE", [node.emotion]);
+  const baseColor = useMemo(() => {
+    if (isAnalyzing) return '#E0E0E0'; // 분석 중: 은은한 회색
+    return emotionColors[node.emotion] || "#90A4AE";
+  }, [node.emotion, isAnalyzing]);
   const adjective = useMemo(() => emotionAdjectives[node.emotion] || "이름 없는", [node.emotion]);
   const currentTag = useMemo(() => filterTags[node.mutationFilter] || "기록", [node.mutationFilter]);
 
   // 토픽 텍스트 길이에 따른 생략 처리
   const displayTopic = useMemo(() => {
+    if (isAnalyzing) return "분석 진행 중...";
     const raw = node.topic || "이름 없는 형체";
     if (isSelected) return raw;
     if (raw.length <= 20) return raw;
     const cutStr = raw.slice(0, 20);
     const cleanedStr = cutStr.replace(/\.+$/, "");
     return `${cleanedStr}...`;
-  }, [node.topic, isSelected]);
+  }, [node.topic, isSelected, isAnalyzing]);
 
   // 변화 점수에 따른 메쉬 왜곡(Distortion) 정도 계산
   const distortAmount = useMemo(() => {
@@ -92,7 +97,12 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
 
     // 1. 크기 보간 및 루트 노드 회전 애니메이션
     if (meshRef.current) {
-      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+      if (isAnalyzing) {
+        const pulse = 1 + Math.sin(time * 3) * 0.15; // 빠르게 숨쉬는 효과
+        meshRef.current.scale.set(targetScale * pulse, targetScale * pulse, targetScale * pulse);
+     } else {
+        meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+     }
       if (isRoot) meshRef.current.rotation.y = time * 0.1;
     }
 
@@ -144,13 +154,13 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         <sphereGeometry args={[1, 64, 64]} />
         <MeshDistortMaterial
           ref={materialRef}
-          speed={isRoot ? 1 : 2.5}
+          speed={isRoot ? 1 : (isAnalyzing ? 3 : 2.5)}
           distort={distortAmount}
           radius={1}
           transparent
-          opacity={0.95}
+          opacity={isAnalyzing ? 0.6 : 0.95}
           emissive={baseColor} // 감정에 따른 자체 발광 효과
-          emissiveIntensity={isRoot ? 1.2 : (isSelected ? 1.5 : 0.3)}
+          emissiveIntensity={isRoot ? 1.2 : (isSelected ? 1.5 : (isAnalyzing ? 0.5 : 0.3))}
         />
       </mesh>
 

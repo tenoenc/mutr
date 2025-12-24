@@ -19,6 +19,8 @@ dependencies {
     // JSON 직렬화 지원
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.fasterxml.jackson.module:jackson-module-parameter-names'
+
+    implementation 'net.devh:grpc-client-spring-boot-starter:2.15.0.RELEASE'
 }
 
 def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
