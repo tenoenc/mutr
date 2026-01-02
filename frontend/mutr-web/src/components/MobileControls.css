@@ -1,0 +1,31 @@
+.mobile-controls-container {
+    position: fixed;
+    bottom: 130px;
+    left: 40px;
+    z-index: 20001;
+
+    width: 100px;
+    height: 100px;
+    
+    /* 터치 조작 시 브라우저 스크롤/확대 방지 */
+    touch-action: none;
+
+    /* 텍스트/이미지 선택 방지 */
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  /* 데스크탑에서는 숨김 */
+  @media (min-width: 769px) {
+    .mobile-controls-container {
+      display: none;
+    }
+  }
+  
+  /* 모바일 가로 모드일 경우 위치 미세 조정 */
+  @media (max-width: 768px) and (orientation: landscape) {
+    .mobile-controls-container {
+      bottom: 20px;
+      left: 20px;
+    }
+  }

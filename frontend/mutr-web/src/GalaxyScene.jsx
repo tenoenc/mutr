@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { KeyboardControls } from '@react-three/drei';
 import * as THREE from 'three';
+
+import { isMobile } from './utils/isMobile';
 
 // API 통신 및 실시간 통신을 위한 모듈
 import api from './api/axios'; 
@@ -14,6 +16,7 @@ import NodeInput from './components/NodeInput';
 import SceneController from './components/SceneController';
 import RelationLines from './components/RelationLines';
 import HeaderNickname from './components/HeaderNickname';
+import MobileControls from './components/MobileControls';
 
 /**
  * CameraController: 특정 노드 선택 시 카메라를 해당 위치로 부드럽게 이동시키는 컴포넌트
@@ -59,6 +62,7 @@ function GalaxyScene() {
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [mainCamera, setMainCamera] = useState(null);
     const [cameraTarget, setCameraTarget] = useState(null);
+    const [mobileDevice, setMobileDevice] = useState(() => isMobile());
 
     // 선택된 노드 객체 파생
     const selectedNode = nodes.find(n => n.id === selectedNodeId);
@@ -98,10 +102,27 @@ function GalaxyScene() {
         setNodes(prev => [...prev.filter(n => n.id !== newNode.id), newNode]);
     });
 
+    // 조이스틱 입력값을 저장 (렌더링 없이 값만 공유)
+    const joystickRef = useRef({ x: 0, y: 0 });
+
+    const handleJoystickMove = (event) => {
+        // x, y 값을 -1 ~ 1 사이로 정규화하여 저장
+        joystickRef.current = { x: event.x || 0, y: event.y || 0 };
+    };
+
+    const handleJoystickStop = () => {
+        joystickRef.current = { x: 0, y: 0 };
+    };
+
     return (
-        <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+        <div style={{ width: '100vw', height: '100vh', position: 'relative', touchAction: 'none' }}>
             {/* Overlay UI: 상단 유저 닉네임 표시부 */}
             <HeaderNickname />
+
+            {/* 모바일 컨트롤러 */}
+            {mobileDevice && (
+                <MobileControls onMove={handleJoystickMove} onStop={handleJoystickStop} />
+            )}
 
             {/* 3D 렌더링 영역 (KeyboardControls로 이동 키 입력 감지) */}
             <KeyboardControls map={[
@@ -110,7 +131,7 @@ function GalaxyScene() {
                 { name: 'left', keys: ['a', 'A'] },
                 { name: 'right', keys: ['d', 'D'] },
             ]}>
-                <Canvas gl={{ alpha: true, antialias: true }} onPointerMissed={() => setSelectedNodeId(null)}>
+                <Canvas gl={{ alpha: true, antialias: true }} onPointerMissed={() => setSelectedNodeId(null)} style={{ touchAction: 'none' }}>
                     {/* 카메라 제어 로직 */}
                     <CameraController cameraTarget={cameraTarget} setCameraTarget={setCameraTarget} setCamera={setMainCamera} />
                     
@@ -118,7 +139,10 @@ function GalaxyScene() {
                     <ambientLight intensity={0.7} />
                     
                     {/* 카메라 이동 및 경계 감지 로직 */}
-                    <Movement onInterrupt={() => setCameraTarget(null)} />
+                    <Movement 
+                        onInterrupt={() => setCameraTarget(null)} 
+                        joystickRef={joystickRef} 
+                    />
                     <SceneController onMoveThreshold={fetchNearby} />
                     
                     {/* 노드 간 관계선 및 개별 별(Star) 렌더링 */}

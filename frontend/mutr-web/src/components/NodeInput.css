@@ -1,0 +1,66 @@
+/* 전체 컨테이너 */
+.node-input-container {
+    position: fixed; 
+    bottom: 50px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    z-index: 10000; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center;
+    width: 100%;
+    pointer-events: none; /* 컨테이너는 클릭 통과 */
+  }
+  
+  .node-input-container > * {
+    pointer-events: auto; /* 내부 요소 클릭 가능 */
+  }
+  
+  /* 이어하기 버블 */
+  .continue-bubble {
+    background: rgba(255, 255, 255, 0.9); 
+    padding: 12px 24px; 
+    border-radius: 25px; 
+    font-size: 15px; 
+    margin-bottom: 15px;
+    cursor: pointer; 
+    color: #5b7bb1; 
+    border: 2px solid #8ba3cf;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+    font-weight: 600;
+  }
+  
+  /* 입력 필드 */
+  .node-input-field {
+    background: rgba(255, 255, 255, 0.8); 
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 2px solid white; 
+    padding: 18px 40px; 
+    border-radius: 50px;
+    width: 600px; /* 데스크탑 고정 */
+    font-size: 18px; 
+    outline: none; 
+    color: #333;
+    text-align: center; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  }
+  
+  /* --- [반응형] 모바일 오버라이드 --- */
+  @media (max-width: 768px) {
+    .node-input-container {
+      bottom: 30px;
+    }
+  
+    .continue-bubble {
+      font-size: 13px;
+      padding: 10px 18px;
+    }
+  
+    .node-input-field {
+      width: 90%;       /* 600px -> 90% */
+      max-width: 600px;
+      font-size: 16px;  /* 줌인 방지 */
+      padding: 14px 20px;
+    }
+  }
