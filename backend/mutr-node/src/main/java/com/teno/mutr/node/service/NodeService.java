@@ -12,12 +12,30 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NodeService {
     private final NodeRepository nodeRepository;
     private final NodeDomainService nodeDomainService;
+
+    /**
+     * 특정 트리의 모든 노드를 리스트 형태로 반환합니다.
+     */
+    public List<NodeResponse> getLineage(Long rootId) {
+        List<Node> nodes = nodeRepository.findAllByRootIdOrderByCreatedAtAsc(rootId);
+
+        if (nodes.isEmpty()) {
+            throw new IllegalArgumentException("존재하지 않는 은하계이거나 노드가 없습니다.");
+        }
+
+        return nodes.stream()
+                .map(NodeResponse::from)
+                .collect(Collectors.toList());
+    }
 
     @Transactional
     public NodeResponse createNode(User user, NodeCreateRequest request) {

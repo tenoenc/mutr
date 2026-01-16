@@ -7,10 +7,9 @@ import com.teno.mutr.node.service.NodeService;
 import com.teno.mutr.node.web.dto.NodeCreateRequest;
 import com.teno.mutr.node.web.dto.NodeResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,6 +18,20 @@ public class NodeController {
 
     private final NodeService nodeService;
 
+    /**
+     * 특정 은하계(트리) 전체 조회
+     * GET /api/v1/nodes/lineage/1
+     */
+    @GetMapping("/lineage/{rootId}")
+    public ApiResponse<List<NodeResponse>> getLineage(@PathVariable Long rootId) {
+        List<NodeResponse> response = nodeService.getLineage(rootId);
+        return ApiResponse.ok("은하계 데이터를 성공적으로 불러왔습니다.", response);
+    }
+
+    /**
+     * 노드 생성
+     * POST /api/v1/nodes
+     */
     @PostMapping
     public ApiResponse<NodeResponse> createNode(
             @CurrentUser User user,
