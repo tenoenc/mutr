@@ -36,6 +36,9 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 미사용
                 .authorizeHttpRequests(auth -> auth
+                        // 웹 소켓 핸드쉐이크 엔드포인트 허용
+                        // SockJS를 사용하면 /ws-mutr/info 등 하위 경로가 생기므로 /**를 붙임
+                        .requestMatchers("/ws-mutr/**").permitAll()
                         .requestMatchers("/", "/login/**", "/oauth2/**").permitAll()
                         .anyRequest().authenticated()
                 )
