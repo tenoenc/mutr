@@ -31,7 +31,7 @@ public class NodeResponse {
                 .z(node.getCoordinate().getZ())
                 .filter(node.getMutationInfo().getFilter())
                 .score(node.getMutationInfo().getScore())
-                .parentId(node.getParent() != null ? node.getParent().getId() : null)
+                .parentId(node.getParentId())
                 .rootId(node.getRootId())
                 .cratedAt(node.getCreatedAt())
                 .build();

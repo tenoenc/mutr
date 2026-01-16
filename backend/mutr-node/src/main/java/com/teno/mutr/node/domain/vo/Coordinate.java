@@ -26,11 +26,21 @@ public class Coordinate {
         return new Coordinate(0.0, 0.0, 0.0);
     }
 
-    public double distanceTo(Coordinate other) {
-        return Math.sqrt(
-                Math.pow(this.x - other.x, 2) +
-                        Math.pow(this.y - other.y, 2) +
-                        Math.pow(this.z - other.z, 2)
+    /**
+     * 현재 위치를 기준으로 특정 거리만큼 떨어진 무작위 구면 좌표를 계산하여 반환합니다.
+     */
+    public Coordinate calculateRandomPointOnSphere(double radius) {
+        double theta = Math.random() * 2 * Math.PI; // 0 ~ 360도
+        double phi = Math.acos(2 * Math.random() - 1); // 고도각
+
+        double nextX = this.x + (radius * Math.sin(phi) * Math.cos(theta));
+        double nextY = this.y + (radius * Math.sin(phi) * Math.sin(theta));
+        double nextZ = this.z + (radius * Math.cos(phi));
+
+        return Coordinate.of(
+                Math.round(nextX * 100) / 100.0,
+                Math.round(nextY * 100) / 100.0,
+                Math.round(nextZ * 100) / 100.0
         );
     }
 }
