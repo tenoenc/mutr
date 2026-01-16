@@ -1,0 +1,18 @@
+// 이 모듈만 실행 파일(bootJar)을 생성합니다.
+bootJar { enabled = true }
+jar { enabled = false }
+
+dependencies {
+    implementation project(':mutr-auth')
+    implementation project(':mutr-node')
+    implementation project(':mutr-ai')
+
+    // 서버 구동을 위한 핵심 의존성
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // 모니터링 및 개발 편의
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+}
