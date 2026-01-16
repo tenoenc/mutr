@@ -46,11 +46,11 @@
 
 ### Concurrency & Consistency
 
-비동기 분산 환경에서 부모 노드의 분석이 완료되기 전 자식 노드가 생성될 때 발생하는 데이터 경합(Race Condition)을 제어하기 위해 **Redis 기반의 분산 코디네이터**를 구현했습니다.
+비동기 분산 환경에서 부모 노드의 분석이 완료되기 전 자식 노드가 생성될 때 발생하는 데이터 경합(Race Condition)을 제어하기 위해 **Redis 분산 락(Lock)과 대기열(Queue)을 활용한 동시성 제어 시스템**를 구현했습니다.
 
 1. **Analysis Queuing:** 분석 중인 부모 노드를 참조하는 자식 노드 생성 요청은 즉시 DB에 반영되지 않고 Redis 대기열(Waiting Queue)에 격리됩니다.
 2. **Event Broadcasting:** 부모 노드의 분석 완료 이벤트(`NodeAnalyzedEvent`)가 시스템 내부에 발행됩니다.
-3. **Atomic Release:** 코디네이터가 이벤트를 감지하여 대기 중이던 자식 노드들을 원자적으로 해제하고 분석 파이프라인에 재투입합니다.
+3. **Atomic Release:** 코디네이터가 이벤트를 감지하면, 분산 락을 통해 대기 중이던 자식 노드들을 원자적으로 해제하고 분석 파이프라인에 재투입합니다.
 
 ### Infrastructure & Deployment
 
@@ -93,7 +93,7 @@
 
 **Challenge: Serialization Overhead in Polyglot Environment**
 
-Java(Spring Boot) 기반의 웹 서버와 Python 기반의 AI 엔진을 분리하여 운영하는 **Polyglot 아키텍처** 입니다. 두 서버 간에 거대한 텍스트와 고차원 임베딩 벡터(Float Array)를 교환해야 하는데, 기존 REST API(JSON) 방식은 직렬화/역직렬화 과정에서 CPU 부하가 높고 불필요한 텍스트 오버헤드로 인해 실시간 확장에 병목이 되었습니다.
+Java(Spring Boot) 기반의 웹 서버와 Python 기반의 AI 엔진을 분리하여 운영하는 **Polyglot 아키텍처** 입니다. 두 서버 간에 거대한 텍스트와 빈번하게 대량의 텍스트 컨텍스트를 교환해야 하는데, 기존 REST API(JSON) 방식은 직렬화/역직렬화 과정에서 CPU 부하가 높고 불필요한 텍스트 오버헤드로 인해 향후 실시간 확장 시 심각한 병목이 될 것으로 예상되었습니다.
 
 **Solution: gRPC & Protobuf Interface**
 
