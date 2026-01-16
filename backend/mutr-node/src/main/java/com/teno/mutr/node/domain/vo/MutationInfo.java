@@ -1,4 +1,4 @@
-package com.teno.mutr.core.domain;
+package com.teno.mutr.node.domain.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;

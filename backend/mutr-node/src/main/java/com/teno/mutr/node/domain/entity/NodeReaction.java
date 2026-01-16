@@ -1,6 +1,6 @@
-package com.teno.mutr.node.domain;
+package com.teno.mutr.node.domain.entity;
 
-import com.teno.mutr.auth.domain.User;
+import com.teno.mutr.auth.domain.entity.User;
 import com.teno.mutr.core.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

@@ -1,5 +1,6 @@
 dependencies {
     api 'org.springframework.boot:spring-boot-starter-data-jpa'
+    api 'org.springframework.boot:spring-boot-starter-web'
 
     // QueryDSL 필수 의존성 추가
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'

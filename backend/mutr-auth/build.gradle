@@ -1,8 +1,8 @@
 dependencies {
     api project(':mutr-core')
 
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    api 'org.springframework.boot:spring-boot-starter-security'
+    api 'org.springframework.boot:spring-boot-starter-oauth2-client'
 
     runtimeOnly 'org.postgresql:postgresql'
 
@@ -11,6 +11,11 @@ dependencies {
     annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
     annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
     annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+
+    // JWT 의존성
+    api 'io.jsonwebtoken:jjwt-api:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
 }
 
 def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile

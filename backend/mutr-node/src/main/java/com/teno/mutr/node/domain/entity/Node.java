@@ -1,9 +1,9 @@
-package com.teno.mutr.node.domain;
+package com.teno.mutr.node.domain.entity;
 
-import com.teno.mutr.auth.domain.User;
+import com.teno.mutr.auth.domain.entity.User;
 import com.teno.mutr.core.domain.BaseTimeEntity;
-import com.teno.mutr.core.domain.Coordinate;
-import com.teno.mutr.core.domain.MutationInfo;
+import com.teno.mutr.node.domain.vo.Coordinate;
+import com.teno.mutr.node.domain.vo.MutationInfo;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

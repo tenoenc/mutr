@@ -1,6 +1,6 @@
-package com.teno.mutr.auth.repository;
+package com.teno.mutr.auth.domain.repository;
 
-import com.teno.mutr.auth.domain.User;
+import com.teno.mutr.auth.domain.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

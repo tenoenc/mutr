@@ -1,4 +1,4 @@
-package com.teno.mutr.auth.domain;
+package com.teno.mutr.auth.domain.entity;
 
 import com.teno.mutr.core.domain.BaseTimeEntity;
 import jakarta.persistence.*;
