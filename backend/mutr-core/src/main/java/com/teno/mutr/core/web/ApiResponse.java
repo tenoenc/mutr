@@ -1,4 +1,4 @@
-package com.teno.mutr.app.web;
+package com.teno.mutr.core.web;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
