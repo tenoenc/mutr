@@ -1,0 +1,9 @@
+/* src/index.css */
+body, html, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* 기존보다 채도를 높이고 밝기를 낮춘 차분한 그라데이션 */
+  background: linear-gradient(180deg, #6a85b6 0%, #bac8e0 100%);
+  cursor: auto !important;
+}

@@ -1,7 +1,6 @@
 package com.teno.mutr.auth.web.handler;
 
 import com.teno.mutr.auth.infra.jwt.TokenProvider;
-import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

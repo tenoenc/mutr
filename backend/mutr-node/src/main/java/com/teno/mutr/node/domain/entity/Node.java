@@ -52,14 +52,6 @@ public class Node extends BaseTimeEntity {
     @Embedded
     private Coordinate coordinate;
 
-    @Builder.Default
-    @Column(name = "reaction_count", nullable = false)
-    private Integer reactionCount = 0;
-
-    @Builder.Default
-    @Column(name = "is_ai_generated", nullable = false)
-    private Boolean isAiGenerated = false;
-
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     @Builder.Default
@@ -73,28 +65,14 @@ public class Node extends BaseTimeEntity {
      */
 
     /**
-     * 이 노드가 새로운 은하계의 시작점이 됨을 선언합니다.
-     */
-    public void initRootAsSelf() {
-        if (this.rootId == null) {
-            this.rootId = this.id;
-        }
-    }
-
-    /**
      * 부모 노드로부터 은하계 소속 정보(rootId)를 계승합니다.
      */
-    public void inheritRootFrom(Node parent) {
+    public void decideRootFrom(Node parent) {
         if (parent != null) {
             this.rootId = (parent.getRootId() != null) ? parent.getRootId() : parent.getId();
+        } else {
+            this.rootId = this.id;
         }
-    }
-
-    /**
-     * 노드가 사용자로부터 새로운 반응을 얻었을 때 호출됩니다.
-     */
-    public void addReaction() {
-        this.reactionCount++;
     }
 
     /**
@@ -110,4 +88,5 @@ public class Node extends BaseTimeEntity {
     public boolean isRoot() {
         return this.parent == null;
     }
+
 }
