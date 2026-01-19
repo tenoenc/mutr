@@ -3,6 +3,7 @@ package com.teno.mutr.node.domain.entity;
 import com.teno.mutr.auth.domain.entity.User;
 import com.teno.mutr.core.domain.BaseTimeEntity;
 import com.teno.mutr.node.domain.vo.Coordinate;
+import com.teno.mutr.node.domain.vo.Emotion;
 import com.teno.mutr.node.domain.vo.MutationInfo;
 import jakarta.persistence.*;
 import lombok.*;
@@ -78,11 +79,16 @@ public class Node extends BaseTimeEntity {
         }
     }
 
-    public void defineIdentity(String topic, MutationInfo mutationInfo, String emotion, Double confidence) {
+    public void defineIdentity(String topic, MutationInfo mutationInfo, Emotion emotion, Double confidence) {
         this.topic = topic;
         this.mutationInfo = mutationInfo;
-        this.metadata.put("emotion", emotion);
+        this.metadata.put("emotion", emotion.getKey());
         this.metadata.put("confidence", String.valueOf(confidence));
+    }
+
+    public Emotion getEmotion() {
+        String emotionKey = (String) this.metadata.getOrDefault("emotion", "neutral");
+        return Emotion.from(emotionKey);
     }
 
 }
