@@ -43,6 +43,6 @@ public class NodeAnalysisListener {
         );
 
         // 4. 완성된 노드 알림 전송
-        messagingTemplate.convertAndSend("/topic/galaxy", NodeResponse.from(node));
+        messagingTemplate.convertAndSend("/topic/galaxy/public", NodeResponse.from(node));
     }
 }

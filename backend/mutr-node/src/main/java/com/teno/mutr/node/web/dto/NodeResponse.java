@@ -29,6 +29,7 @@ public class NodeResponse {
                 .content(node.getContent())
                 .emotion(node.getEmotion().getKey())
                 .authorNickname(node.getUser().getNickname())
+                .topic(node.getTopic())
                 .mutationFilter(node.getMutationInfo().getFilter())
                 .mutationScore(node.getMutationInfo().getScore())
                 .x(node.getCoordinate().getX())
