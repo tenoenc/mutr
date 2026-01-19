@@ -51,3 +51,23 @@ logging:
   level:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE # SQL 파라미터 확인용
+
+grpc:
+  client:
+    # @GrpcClient("mutr-ai-engine")에서 지정한 이름과 정확히 일치해야 함
+    mutr-ai-engine:
+      # 1. 연결 주소 (프로토콜://호스트:포트)
+      # 로컬 테스트 시 'static://' 접두사를 붙이는 것이 가장 안정적
+      address: 'static://localhost:50051'
+
+      # 2. 협상 유형 (보안 설정)
+      # 개발 단계에서 SSL/TLS를 사용하지 않는다면 반드시 plaintext로 설정
+      negotiation-type: plaintext
+
+      # 3. 연결 유지 설정
+      enable-keep-alive: true
+      keep-alive-without-calls: true
+      keep-alive-time: 20s
+
+      # 4. 메시지 크기 제한 (AI 분석 결과가 길어질 경우 대비)
+      max-inbound-message-size: 10485760 # 10MB

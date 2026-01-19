@@ -19,7 +19,7 @@ export default function RelationLines({ nodes, selectedNodeId }) {
       const c = nodes.find(n => String(n.id) === String(cid));
       
       if (p && c) {
-        // ✅ 방향성: p(부모)가 start, c(자식)가 end
+        // 방향성: p(부모)가 start, c(자식)가 end
         const start = [p.x ?? 0, p.y ?? 0, p.z ?? 0];
         const end = [c.x ?? 0, c.y ?? 0, c.z ?? 0];
         const mid = [(start[0]+end[0])/2, (start[1]+end[1])/2 + 8, (start[2]+end[2])/2];
@@ -36,7 +36,7 @@ export default function RelationLines({ nodes, selectedNodeId }) {
     return links;
   }, [nodes, selectedNodeId]);
 
-  // ✅ 중요: 매 프레임 실행되는 애니메이션 로직
+  // 매 프레임 실행되는 애니메이션 로직
   useFrame(() => {
     lineRefs.current.forEach(line => {
       if (line?.material) {
@@ -46,7 +46,7 @@ export default function RelationLines({ nodes, selectedNodeId }) {
     });
   });
 
-  // ✅ 렌더링 시 레퍼런스 배열을 초기화하여 속도 중첩 방지
+  // 렌더링 시 레퍼런스 배열을 초기화하여 속도 중첩 방지
   lineRefs.current = [];
 
   return (
