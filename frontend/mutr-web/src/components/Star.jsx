@@ -51,11 +51,12 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   // 토픽 텍스트 길이에 따른 생략 처리
   const displayTopic = useMemo(() => {
     const raw = node.topic || "이름 없는 형체";
+    if (isSelected) return raw;
     if (raw.length <= 20) return raw;
     const cutStr = raw.slice(0, 20);
     const cleanedStr = cutStr.replace(/\.+$/, "");
     return `${cleanedStr}...`;
-  }, [node.topic]);
+  }, [node.topic, isSelected]);
 
   // 변화 점수에 따른 메쉬 왜곡(Distortion) 정도 계산
   const distortAmount = useMemo(() => {
