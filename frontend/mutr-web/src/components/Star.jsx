@@ -43,6 +43,18 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const baseScale = isRoot ? 1.3 : 0.8;
   const targetScale = isSelected ? baseScale * 1.3 : baseScale;
 
+  // 공통 토픽 스타일
+  const topicBaseStyle = {
+    color: '#2c3e50',
+    fontWeight: '900',
+    fontSize: '24px',
+    whiteSpace: 'nowrap',
+    fontFamily: '"Noto Sans KR", sans-serif',
+    WebkitTextStroke: '1.5px #ffffff',
+    paintOrder: 'stroke fill',
+    transition: 'opacity 0.2s',
+  };
+
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
     const camera = state.camera;
@@ -57,6 +69,7 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         haloRef.current.scale.set(pulseScale, pulseScale, pulseScale);
     }
 
+    // 거리 페이드 (isSelected 시에는 패널 쪽에서 보이므로 노드 위는 숨김)
     if (topicRef.current) {
       const distance = camera.position.distanceTo(meshRef.current.getWorldPosition(new THREE.Vector3()));
       const visibleDistance = isRoot ? 60 : 35;
@@ -65,40 +78,28 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
       let opacity = 1 - (distance - fadeDistance) / (visibleDistance - fadeDistance);
       opacity = Math.max(0, Math.min(1, opacity));
 
-      topicRef.current.style.opacity = isSelected ? 0.5 : opacity;
+      topicRef.current.style.opacity = isSelected ? 0 : opacity;
       topicRef.current.style.display = (isSelected || opacity > 0) ? 'block' : 'none';
     }
   });
 
   return (
     <group position={pos}>
-      {/* 텍스트 레이어 (Html) */}
-      <Html 
-        distanceFactor={25} 
-        position={[0, 2.5, 0]} 
-        center 
-        style={{ pointerEvents: 'none', zIndex: 1 }}
-      >
-        <div 
-          ref={topicRef}
-          style={{
-            color: '#2c3e50',
-            fontWeight: '900', // 외곽선에 글자가 묻히지 않도록 더 두꺼운 폰트 권장
-            fontSize: '24px',
-            whiteSpace: 'nowrap',
-            transition: 'opacity 0.2s',
-            fontFamily: '"Noto Sans KR", sans-serif',
-            
-            /* ✅ 현대적인 솔리드 아웃라인 구현 */
-            WebkitTextStroke: '1.5px #ffffff', // 외곽선 두께와 색상
-            paintOrder: 'stroke fill',         // 선을 먼저 그려 글자 본체가 얇아지는 현상 방지
-          }}
+      {/* 노드 위에 떠 있는 기본 토픽 레이어 */}
+      {!isSelected && (
+        <Html 
+          distanceFactor={25} 
+          position={[0, 2.5, 0]} 
+          center 
+          style={{ pointerEvents: 'none', zIndex: 1 }}
         >
-          {displayTopic}
-        </div>
-      </Html>
+          <div ref={topicRef} style={topicBaseStyle}>
+            {displayTopic}
+          </div>
+        </Html>
+      )}
 
-      {/* 루트 노드 후광 */}
+      {/* 후광 및 본체 */}
       {isRoot && (
         <mesh ref={haloRef}>
             <sphereGeometry args={[1, 32, 32]} />
@@ -113,7 +114,6 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         </mesh>
       )}
 
-      {/* 별 본체 */}
       <mesh 
         ref={meshRef}
         onClick={(e) => { e.stopPropagation(); onSelect(node.id); }}
@@ -132,27 +132,36 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         />
       </mesh>
 
-      {/* 상세 패널 (Html) */}
+      {/* 상세 패널 레이어 (토픽을 테두리 바깥 상단에 배치) */}
       {isSelected && (
-        <Html distanceFactor={20} position={[4, 4, 0]} style={{ zIndex: 100 }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(15px)',
-            border: `8px solid ${baseColor}`,
-            padding: '40px',
-            borderRadius: '40px',
-            color: '#333',
-            width: '640px',
-            boxShadow: `0 30px 60px rgba(0,0,0,0.15), 0 0 50px ${baseColor}55`,
-            fontSize: '32px',
-            lineHeight: '1.6',
-            animation: 'popIn 0.3s ease-out'
-          }}>
-            <div style={{ color: baseColor, fontWeight: '900', fontSize: '24px', marginBottom: '20px' }}>
-              {adjective} 형체 #{nodeIdString} | {node.authorNickname}
+        <Html distanceFactor={20} position={[4, 4, 0]} center style={{ zIndex: 100 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            
+            {/* 패널 테두리 바깥 위쪽에 배치된 토픽 */}
+            <div style={{ ...topicBaseStyle, marginBottom: '20px' }}>
+              {displayTopic}
             </div>
-            <div style={{ color: '#2c3e50', wordBreak: 'break-all', fontWeight: '500' }}>
-              {node.content}
+
+            {/* 상세 패널 본체 */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(15px)',
+              border: `8px solid ${baseColor}`,
+              padding: '40px',
+              borderRadius: '40px',
+              color: '#333',
+              width: '640px',
+              boxShadow: `0 30px 60px rgba(0,0,0,0.15), 0 0 50px ${baseColor}55`,
+              fontSize: '32px',
+              lineHeight: '1.6',
+              animation: 'popIn 0.3s ease-out'
+            }}>
+              <div style={{ color: baseColor, fontWeight: '900', fontSize: '24px', marginBottom: '20px' }}>
+                {adjective} 형체 #{nodeIdString} | {node.authorNickname}
+              </div>
+              <div style={{ color: '#2c3e50', wordBreak: 'break-all', fontWeight: '500' }}>
+                {node.content}
+              </div>
             </div>
           </div>
         </Html>

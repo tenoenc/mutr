@@ -1,4 +1,3 @@
-/* src/components/NodeInput.jsx */
 import React, { useState } from 'react';
 import * as THREE from 'three';
 import axios from 'axios';
