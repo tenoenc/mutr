@@ -1,0 +1,129 @@
+/**
+ * 메인 헤더 레이아웃
+ * 상단 중앙 고정 및 텍스트 선택 방지
+ */
+ .status-container {
+    position: fixed;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+  }
+  
+  /**
+   * 공통 모듈 디자인: 다크 틴트 및 백드롭 블러
+   */
+  .nickname-bar, .icon-circle {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background 0.2s ease, border 0.2s ease;
+  }
+  
+  /**
+   * 닉네임 표시 바 스타일
+   */
+  .nickname-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 18px;
+    border-radius: 4px;
+  }
+  
+  /* 닉네임 바 호버: 움직임 없이 대비만 증가 */
+  .nickname-bar:hover {
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  /**
+   * 원형 아이콘 버튼 스타일
+   */
+  .auth-icons {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+  }
+  
+  .icon-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    outline: none;
+  }
+  
+  .icon-circle:hover {
+    background: rgba(0, 0, 0, 0.45);
+    transform: translateY(-2px); /* 버튼 피드백 효과 */
+  }
+  
+  /**
+   * 내부 텍스트 및 상세 요소 타이포그래피
+   */
+  .status-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  /* IDENTITY 라벨 */
+  .status-content .label {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.15em;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: -2px;
+  }
+  
+  /* 유저 닉네임 */
+  .status-content .nickname {
+    font-size: 0.95rem;
+    font-weight: 300;
+    color: #ffffff;
+    letter-spacing: 0.05em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  
+  /* 상태 표시점 및 아이콘 */
+  .status-node-indicator {
+    width: 6px;
+    height: 6px;
+    background-color: #ffffff;
+    border-radius: 50%;
+  }
+  
+  .svg-icon {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .kakao-symbol-minimal {
+    width: 17px;
+    height: 16px;
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 50% 50% 50% 10%;
+  }
+  
+  .logout-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #ff4d4d;
+    border-radius: 50%;
+  }
