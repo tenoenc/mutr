@@ -13,6 +13,12 @@ const emotionAdjectives = {
   "anger": "불타는", "anxiety": "위태로운", "embarrassed": "수줍은", "hurt": "아픈"
 };
 
+const filterTags = {
+  CLUSTER: "공명",   // 변화 낮음 (안정)
+  EVOLUTION: "전개", // 변화 중간 (성장)
+  MUTATION: "전환"   // 변화 높음 (격변)
+};
+
 export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const meshRef = useRef();
   const materialRef = useRef();
@@ -26,6 +32,9 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const baseColor = useMemo(() => emotionColors[node.emotion] || "#90A4AE", [node.emotion]);
   const adjective = useMemo(() => emotionAdjectives[node.emotion] || "이름 없는", [node.emotion]);
   
+  // 현재 노드의 필터 유형에 따른 명사 추출
+  const currentTag = useMemo(() => filterTags[node.mutationFilter] || "기록", [node.mutationFilter]);
+
   const displayTopic = useMemo(() => {
     const raw = node.topic || "이름 없는 형체";
     if (raw.length <= 20) return raw;
@@ -43,6 +52,7 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const baseScale = isRoot ? 1.3 : 0.8;
   const targetScale = isSelected ? baseScale * 1.3 : baseScale;
 
+  // 공통 텍스트 스타일 (드래그 방지 포함)
   const topicBaseStyle = {
     color: '#2c3e50',
     fontWeight: '900',
@@ -52,7 +62,8 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
     WebkitTextStroke: '1.5px #ffffff',
     paintOrder: 'stroke fill',
     transition: 'opacity 0.2s',
-    userSelect: 'none', // 텍스트 드래그 방지
+    userSelect: 'none',
+    WebkitUserSelect: 'none'
   };
 
   useFrame((state) => {
@@ -84,6 +95,7 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
 
   return (
     <group position={pos}>
+      {/* 1. 노드 위 기본 토픽 */}
       {!isSelected && (
         <Html distanceFactor={25} position={[0, 2.5, 0]} center style={{ pointerEvents: 'none', zIndex: 1 }}>
           <div ref={topicRef} style={topicBaseStyle}>
@@ -92,6 +104,7 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         </Html>
       )}
 
+      {/* 후광 및 본체 로직 */}
       {isRoot && (
         <mesh ref={haloRef}>
             <sphereGeometry args={[1, 32, 32]} />
@@ -117,29 +130,21 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
         />
       </mesh>
 
+      {/* 2. 상세 패널 */}
       {isSelected && (
         <Html distanceFactor={20} position={[4, 4, 0]} center style={{ zIndex: 100 }}>
           <div 
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center',
-              cursor: 'default'
-            }}
-            /* 패널 클릭 시 캔버스의 deselection 로직 전파 차단 */
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'default' }}
             onPointerDown={(e) => e.stopPropagation()}
-            onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            /* 패널 더블 클릭 시 별 더블 클릭과 동일한 동작 수행 */
-            onDoubleClick={(e) => { 
-              e.stopPropagation(); 
-              onDoubleClick(node); 
-            }}
+            onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick(node); }}
           >
+            {/* 패널 위쪽 토픽 */}
             <div style={{ ...topicBaseStyle, marginBottom: '20px' }}>
               {displayTopic}
             </div>
 
+            {/* 패널 본체 */}
             <div style={{
               background: 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(15px)',
@@ -152,12 +157,14 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
               fontSize: '32px',
               lineHeight: '1.6',
               animation: 'popIn 0.3s ease-out',
-              userSelect: 'none', // 패널 내 텍스트 드래그 방지
-              WebkitUserSelect: 'none' // 크로스 브라우징 지원
+              userSelect: 'none',
+              WebkitUserSelect: 'none'
             }}>
+              {/* 패널 내 헤더 텍스트 바로 앞에 태그 추가 */}
               <div style={{ color: baseColor, fontWeight: '900', fontSize: '24px', marginBottom: '20px' }}>
-                {adjective} 형체 #{nodeIdString} | {node.authorNickname}
+                {`[${currentTag}] ${adjective} 형체 #${nodeIdString} | ${node.authorNickname}`}
               </div>
+              
               <div style={{ color: '#2c3e50', wordBreak: 'break-all', fontWeight: '500' }}>
                 {node.content}
               </div>
