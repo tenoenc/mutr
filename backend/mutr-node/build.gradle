@@ -1,7 +1,3 @@
-plugins {
-    id 'com.google.protobuf' version '0.9.4'
-}
-
 dependencies {
     api project(':mutr-core')
     implementation project(':mutr-auth')
@@ -16,26 +12,14 @@ dependencies {
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
     annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
     annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
-
-    // gRPC 관련 의존성
-    // 1. gRPC 핵심 라이브러리 (MethodDescriptor 등이 포함됨)
-    implementation 'net.devh:grpc-client-spring-boot-starter:2.15.0.RELEASE'
-    implementation 'io.grpc:grpc-netty-shaded'
-    implementation 'io.grpc:grpc-protobuf'
-    implementation 'io.grpc:grpc-stub'
-    compileOnly 'jakarta.annotation:jakarta.annotation-api:1.3.5'
 }
 
 def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
-def grpcDir = layout.buildDirectory.dir("generated/source/proto/main/grpc").get().asFile
-def protoJavaDir = layout.buildDirectory.dir("generated/source/proto/main/java").get().asFile
 
 sourceSets {
     main {
         java {
             srcDirs += [ querydslDir ]
-            srcDirs += [ grpcDir ]
-            srcDirs += [ protoJavaDir ]
         }
     }
 }
@@ -46,20 +30,4 @@ tasks.withType(JavaCompile).configureEach {
 
 clean {
     delete querydslDir
-}
-
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:3.24.0"
-    }
-    plugins {
-        grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:1.58.0"
-        }
-    }
-    generateProtoTasks {
-        all()*.plugins {
-            grpc {}
-        }
-    }
 }

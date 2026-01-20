@@ -1,19 +1,19 @@
-package com.teno.mutr.node.infra.grpc;
+package com.teno.mutr.ai.infra;
 
-import com.teno.mutr.node.domain.dto.AnalysisResult;
-import com.teno.mutr.node.infra.grpc.stubs.AnalysisRequest;
-import com.teno.mutr.node.infra.grpc.stubs.AnalysisResponse;
-import com.teno.mutr.node.infra.grpc.stubs.AnalysisServiceGrpc;
+import com.teno.mutr.ai.domain.AnalysisResult;
+import com.teno.mutr.ai.infra.grpc.stubs.AnalysisRequest;
+import com.teno.mutr.ai.infra.grpc.stubs.AnalysisResponse;
+import com.teno.mutr.ai.infra.grpc.stubs.AnalysisServiceGrpc;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
 
 @Component
-public class NodeAnalysisClient {
+public class GrpcAiClient {
 
     @GrpcClient("mutr-ai-engine")
     private AnalysisServiceGrpc.AnalysisServiceBlockingStub analysisServiceStub;
 
-    public AnalysisResult analyze(String content, String parentSummary, String fullContext) {
+    public AnalysisResult call(String content, String parentSummary, String fullContext) {
         // 1. gRPC 요청 객체 생성
         AnalysisRequest request = AnalysisRequest.newBuilder()
                 .setContent(content)
