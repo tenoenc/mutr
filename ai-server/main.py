@@ -49,6 +49,33 @@ class MUTRModelEngine:
         elif similarity >= 0.15: score = 0.7 - (similarity - 0.15) * (0.4 / 0.2)
         else: score = 1.0 - max(0, similarity)
         return round(max(0.0, min(1.0, score)), 4)
+    
+    import re
+
+    def get_final_topic(self, gen_topic, parent_summary):
+        """
+        LLM이 생성한 제목(gen_topic)을 정제하여 최종 제목(final_topic)을 반환합니다.
+        """
+        # 1. 숫자 패턴(예: "1. 제목") 및 마침표 제거
+        step1 = re.sub(r"^\d+\.\s*", "", gen_topic).replace(".", "").strip()
+        
+        # 2. 오염된 단어 필터링 (외국어가 포함된 어절 삭제)
+        # 한글, 영문, 숫자, 공백이 아닌 문자가 하나라도 섞인 단어 덩어리를 통째로 제거
+        pattern = r'\s?\S*[^가-힣a-zA-Z0-9\s]\S*'
+        step2 = re.sub(pattern, '', step1).strip()
+        
+        # '제목:' 문구가 포함된 경우 제거
+        step2 = step2.replace("제목", "").strip()
+
+        # 3. 최종 Fallback
+        # 필터링 후 결과가 비어있다면, LLM이 실패한 것으로 간주하고 이전 요약을 유지함
+        if not step2:
+            final_topic = parent_summary if parent_summary else "오늘의 기록"
+        else:
+            final_topic = step2
+
+        # UI 가독성을 위한 최종 길이 제한
+        return final_topic[:20]
 
     def analyze(self, content, parent_summary, full_context):
         # [STEP 1] 감정 분석
@@ -66,39 +93,36 @@ class MUTRModelEngine:
 
         prompt = (
             f"<|start_header_id|>system<|end_header_id|>\n\n"
-            f"You are 'Seongdan', a professional diary analyzer. "
-            f"Your goal is to create a concise, abstract Korean title (nominal phrase) for the current input. "
-            f"**CRITICAL RULES:**\n"
-            f"1. NEVER copy the dialogue directly from the text.\n"
-            f"2. DO NOT use quotation marks or conversational endings (~하자, ~했다).\n"
-            f"3. Use abstract nouns to represent the core theme.\n\n"
-            f"Examples:\n"
-            f"- Input: '우리 피자 먹자! 진짜 배고파!' -> Title: 피자를 향한 갈망\n"
-            f"- Input: '8시까지 모여서 게임하기로 함' -> Title: 저녁 모임 약속\n"
-            f"- Input: '아무것도 하기 싫다...' -> Title: 무기력한 오후의 기록\n"
-            f"<|eot_id|>\n"
+            f"You are 'Seongdan', an expert in narrative evolution. "
+            f"Your task is to detect the 'Mutation' in the user's life and create a Korean title.\n\n"
+            f"**ANALYSIS STEPS:**\n"
+            f"1. Compare the 'Past Summary' with the 'Current Entry'.\n"
+            f"2. If the topic or emotion has changed (Mutation), create a title reflecting the **NEW** direction.\n"
+            f"3. If it's a continuation, create a title that deepens the existing theme.\n\n"
+            f"**STRICT RULES:**\n"
+            f"- Use ONLY Korean (Hangul). No Thai, No Vietnamese.\n"
+            f"- Output ONLY a nominal phrase (e.g., '갑작스러운 이별', '새로운 희망의 시작').<|eot_id|>\n"
             f"<|start_header_id|>user<|end_header_id|>\n\n"
-            f"Previous Theme: {parent_summary if len(summary_input) >= 500 else 'None'}\n"
-            f"Current Content: {target_context}\n\n"
-            f"Title (In Korean):<|eot_id|>\n"
+            f"● Past Summary (The baseline): {parent_summary}\n"
+            f"● Recent Context: {target_context}\n"
+            f"● Current Entry (The latest change): {content}\n\n"
+            f"Instruction: Observe the flow and generate a title that captures the current state of this narrative.<|eot_id|>\n"
             f"<|start_header_id|>assistant<|end_header_id|>\n\n"
             f"제목: "
         )
         with self.llm_lock:
             response = self.llm(
                 prompt,
-                max_tokens=25,
-                temperature=0.0,
-                repeat_penalty=2.0,
-                stop=["\n", "1.", "●", "제목:", "<|eot_id|>"]
+                max_tokens=30,
+                temperature=0.0,      # 창의성보다는 정확도 우선
+                repeat_penalty=1.1,   # 외국어 탈출 방지를 위해 낮게 설정
+                top_p=0.9,            # 상위 확률 토큰 집중
+                top_k=40,             # 후보군을 한국어 위주로 좁힘
+                stop=["\n", "제목:", "<|eot_id|>"]
             )
         
         gen_topic = response['choices'][0]['text'].strip()
-        final_topic = re.sub(r"^\d+\.\s*", "", gen_topic).replace(".", "").strip()
-        
-        # [사용자 제안 지능형 Fallback]
-        if not final_topic:
-            final_topic = parent_summary if parent_summary else "오늘의 기록"
+        final_topic = self.get_final_topic(gen_topic, parent_summary)
 
         # [STEP 3] 변조 점수 계산
         mutation_score = 0.0
