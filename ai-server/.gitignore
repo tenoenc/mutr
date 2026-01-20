@@ -5,6 +5,7 @@ __pycache__/
 
 # 라이브러리 캐시
 .cache/
+models/
 
 # gRPC 자동 생성 파일
 mutr_analysis_pb2.py
