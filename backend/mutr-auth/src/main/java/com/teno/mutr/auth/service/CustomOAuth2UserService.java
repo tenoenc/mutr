@@ -64,13 +64,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     entity.updateNickname(nickname);
                     return entity;
                 })
-                .orElse(User.builder()
-                        .oauthId(oauthId)
-                        .email(email)
-                        .nickname(nickname)
-                        .provider(provider)
-                        .role("ROLE_USER")
-                        .build());
+                .orElse(User.of(oauthId, email, nickname, provider));
 
         return userRepository.save(user);
     }

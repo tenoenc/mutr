@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import * as THREE from 'three';
-import axios from 'axios';
+import api from '../api/axios';
 
 export default function NodeInput({ camera, selectedNode, onNodeCreated, onMoveToNode }) {
   const [content, setContent] = useState("");
@@ -27,13 +27,13 @@ export default function NodeInput({ camera, selectedNode, onNodeCreated, onMoveT
         y: spawnPos.y,
         z: spawnPos.z,
         parentId: selectedNode ? selectedNode.id : null,
-        // ✅ 방향 정보 추가 (정규화된 벡터값)
+        // 방향 정보 추가 (정규화된 벡터값)
         dirX: direction.x,
         dirY: direction.y,
         dirZ: direction.z
       };
-  
-      const response = await axios.post('http://localhost:8080/api/v1/nodes', requestBody);
+
+      const response = await api.post('http://localhost:8080/api/v1/nodes', requestBody);
   
       const newNode = response.data.data || response.data;
       setContent(""); 

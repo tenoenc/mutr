@@ -29,9 +29,9 @@ public class NodeController {
             @RequestBody NodeCreateRequest request
     ) {
         if (user == null) {
-            user = userRepository.findById(1L)
-                    .orElseThrow(() -> new IllegalArgumentException("테스트용 유저가 없습니다."));
-//            throw new IllegalArgumentException("로그인이 필요한 서비스입니다.");
+//            user = userRepository.findById(1L)
+//                    .orElseThrow(() -> new IllegalArgumentException("테스트용 유저가 없습니다."));
+            throw new IllegalArgumentException("로그인이 필요한 서비스입니다.");
         }
 
         NodeResponse response = nodeService.createNode(user, request);
