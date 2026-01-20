@@ -3,7 +3,6 @@ import torch.nn.functional as F
 import re
 import grpc
 import numpy as np
-import time
 import threading
 from concurrent import futures
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -17,9 +16,10 @@ class MUTRModelEngine:
     def __init__(self):
         self.device = torch.device("cpu")
         
-        # 1. 주제 추출 (Llama-3.2-3B) - [KoBART 대체 및 고도화]
+        # 1. 한국어 특화 모델 로드 (Bllossom Llama-3.2-3B)
+        # 외국어 유출 문제를 근본적으로 해결하고 자연스러운 한국어 생성을 지원합니다.
         self.llm = Llama(
-            model_path="./models/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+            model_path="./models/llama-3.2-Korean-Bllossom-3B-gguf-Q4_K_M.gguf",
             n_ctx=1024, 
             n_threads=6, 
             n_gpu_layers=18,
@@ -36,7 +36,7 @@ class MUTRModelEngine:
         self.mut_model = SentenceTransformer("snunlp/KR-SBERT-V40K-klueNLI-augSTS").to(self.device)
 
         self.sent_model.eval()
-        print(f"✅ MUTR 고도화 엔진 로드 완료 (Llama 3.2 통합 버전)")
+        print(f"✅ MUTR Bllossom 엔진 로드 완료 (한국어 최적화 버전)")
 
         self.emotion_map = {
             "기쁨": "joy", "당황": "embarrassed", "분노": "anger",
@@ -50,32 +50,22 @@ class MUTRModelEngine:
         else: score = 1.0 - max(0, similarity)
         return round(max(0.0, min(1.0, score)), 4)
     
-    import re
-
     def get_final_topic(self, gen_topic, parent_summary):
         """
-        LLM이 생성한 제목(gen_topic)을 정제하여 최종 제목(final_topic)을 반환합니다.
+        Bllossom 모델 출력에 맞춰 간소화된 텍스트 정제 로직
         """
-        # 1. 숫자 패턴(예: "1. 제목") 및 마침표 제거
-        step1 = re.sub(r"^\d+\.\s*", "", gen_topic).replace(".", "").strip()
+        # 불필요한 서술어 및 특수문자 제거
+        step1 = re.sub(r"^\d+\.\s*", "", gen_topic)
+        step1 = step1.replace("'", "").replace("\"", "")
+        step1 = step1.replace(".", "").replace("제목:", "").replace("제목", "").strip()
         
-        # 2. 오염된 단어 필터링 (외국어가 포함된 어절 삭제)
-        # 한글, 영문, 숫자, 공백이 아닌 문자가 하나라도 섞인 단어 덩어리를 통째로 제거
-        pattern = r'\s?\S*[^가-힣a-zA-Z0-9\s]\S*'
-        step2 = re.sub(pattern, '', step1).strip()
-        
-        # '제목:' 문구가 포함된 경우 제거
-        step2 = step2.replace("제목", "").strip()
-
-        # 3. 최종 Fallback
-        # 필터링 후 결과가 비어있다면, LLM이 실패한 것으로 간주하고 이전 요약을 유지함
-        if not step2:
+        # 최종 Fallback: 생성 실패 시 이전 요약 유지
+        if not step1:
             final_topic = parent_summary if parent_summary else "오늘의 기록"
         else:
-            final_topic = step2
+            final_topic = step1
 
-        # UI 가독성을 위한 최종 길이 제한
-        return final_topic[:20]
+        return final_topic
 
     def analyze(self, content, parent_summary, full_context):
         # [STEP 1] 감정 분석
@@ -87,37 +77,34 @@ class MUTRModelEngine:
             raw_emotion = self.sent_model.config.id2label[pred.item()]
             emotion_label = self.emotion_map.get(raw_emotion, raw_emotion)
 
-        # [STEP 2] 주제 추출 (Llama 3.2 3B)
-        summary_input = f"{full_context} {content}".strip()
-        target_context = summary_input[-500:].strip() # 최신 500자 맥락
-
+        # [STEP 2] 주제 추출 (한국어 프롬프트 고도화)
+        # 모델의 모국어인 한국어로 지시하여 더 정확한 결과물을 유도합니다.
         prompt = (
             f"<|start_header_id|>system<|end_header_id|>\n\n"
-            f"You are 'Seongdan', an expert in narrative evolution. "
-            f"Your task is to detect the 'Mutation' in the user's life and create a Korean title.\n\n"
-            f"**ANALYSIS STEPS:**\n"
-            f"1. Compare the 'Past Summary' with the 'Current Entry'.\n"
-            f"2. If the topic or emotion has changed (Mutation), create a title reflecting the **NEW** direction.\n"
-            f"3. If it's a continuation, create a title that deepens the existing theme.\n\n"
-            f"**STRICT RULES:**\n"
-            f"- Use ONLY Korean (Hangul). No Thai, No Vietnamese.\n"
-            f"- Output ONLY a nominal phrase (e.g., '갑작스러운 이별', '새로운 희망의 시작').<|eot_id|>\n"
+            f"당신은 기록의 흐름을 분석하는 서사 전문가 '성단'입니다. "
+            f"제공된 '과거 기준'과 '최근 서사 흐름'을 대조하여, 이 이야기가 현재 어떤 상태에 도달했는지 포착해 제목을 지어주세요.\n\n"
+            f"**분석 전략:**\n"
+            f"1. 반드시 한국어로만 답변하세요.\n"
+            f"2. 최근 서사 흐름이 전체 서사에서 갖는 '최종적인 의미'를 제목에 반영하세요.\n"
+            f"3. 과거의 주제에서 얼마나 멀어졌는지, 혹은 어떻게 이어지는지를 고려하세요.\n"
+            f"4. 명사형으로 20자 내외로 간결하게 작성하세요.<|eot_id|>\n"
             f"<|start_header_id|>user<|end_header_id|>\n\n"
-            f"● Past Summary (The baseline): {parent_summary}\n"
-            f"● Recent Context: {target_context}\n"
-            f"● Current Entry (The latest change): {content}\n\n"
-            f"Instruction: Observe the flow and generate a title that captures the current state of this narrative.<|eot_id|>\n"
+            f"● 과거 기준 (Baseline): {parent_summary}\n\n"
+            f"● 최근 서사 흐름 (Flow):\n"
+            f"{full_context}\n\n"
+            f"지시: 과거로부터 이어진 서사가 현재의 흐름 끝에서 어떤 모습으로 변모했는지 한글 제목으로 생성하세요.<|eot_id|>\n"
             f"<|start_header_id|>assistant<|end_header_id|>\n\n"
             f"제목: "
         )
+        
         with self.llm_lock:
             response = self.llm(
                 prompt,
                 max_tokens=30,
-                temperature=0.0,      # 창의성보다는 정확도 우선
-                repeat_penalty=1.1,   # 외국어 탈출 방지를 위해 낮게 설정
-                top_p=0.9,            # 상위 확률 토큰 집중
-                top_k=40,             # 후보군을 한국어 위주로 좁힘
+                temperature=0.0,
+                repeat_penalty=1.2,   # 한국어 반복 방지 및 일관성 강화
+                top_p=0.9,
+                top_k=40,
                 stop=["\n", "제목:", "<|eot_id|>"]
             )
         
@@ -149,7 +136,7 @@ def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     mutr_analysis_pb2_grpc.add_AnalysisServiceServicer_to_server(MUTRAnalysisServicer(), server)
     server.add_insecure_port('[::]:50051')
-    print("🚀 MUTR AI Engine (Verified) started on port 50051")
+    print("🚀 MUTR Bllossom AI Engine started on port 50051")
     server.start()
     server.wait_for_termination()
 
