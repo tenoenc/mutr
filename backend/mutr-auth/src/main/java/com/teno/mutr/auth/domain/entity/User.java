@@ -68,12 +68,4 @@ public class User extends BaseTimeEntity {
                 .role(UserRole.ROLE_GUEST)
                 .build();
     }
-
-    public void onLogin() {
-        this.lastLoginAt = LocalDateTime.now();
-    }
-
-    public void updateNickname(String newNickname) {
-        this.nickname = newNickname;
-    }
 }

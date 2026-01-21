@@ -15,7 +15,8 @@ const activeSubscriptions = new Map();
  */
 const socketClient = new Client({
     // SockJS를 통해 서버의 웹소켓 엔드포인트와 연결
-    webSocketFactory: () => new SockJS('http://localhost:8080/ws-mutr'),
+    // webSocketFactory: () => new SockJS('http://localhost:8080/ws-mutr'),
+    webSocketFactory: () => new SockJS('/ws-mutr'),
     
     /**
      * 연결 시 전달할 헤더 정보

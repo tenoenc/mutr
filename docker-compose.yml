@@ -2,17 +2,65 @@ services:
   mutr-db:
     image: postgres:17-alpine
     container_name: mutr-db
-    ports:
-      - "5432:5432"
     environment:
-      POSTGRES_DB: mutr
-      POSTGRES_USER: mutr_admin
-      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
-    networks:
-      - mutr-network
+    restart: always
 
-networks:
-  mutr-network:
-    driver: bridge
+  backend:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    container_name: mutr-backend
+    env_file: .env
+    depends_on:
+      - mutr-db
+      - ai-server
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://mutr-db:${DB_PORT}/${DB_NAME} # 호스트는 DB 서비스 이름과 동일해야 함
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      GRPC_CLIENT_MUTR_AI_ENGINE_ADDRESS: static://ai-server:${AI_SERVER_PORT:-50051}  # 호스트는 AI 서비스 이름과 동일해야 함
+      APP_FRONT_URL: ${FRONTEND_URL}
+    ports:
+      - "${BACKEND_HOST_PORT:-8080}:8080"
+    restart: always
+  
+  ai-server:
+    build:
+      context: .
+      dockerfile: ./ai-server/Dockerfile
+    container_name: mutr-ai-server
+    ports:
+      - "${AI_SERVER_PORT:-50051}:50051"
+    environment:
+      AI_SERVER_PORT: ${AI_SERVER_PORT}
+      n_gpu_layers: 0
+      n_threads: 4
+    volumes:
+      # 1. GGUF 모델용 볼륨
+      - ./ai-server/models:/app/models
+      
+      # 2. Hugging Face 모델 캐시용 볼륨 (RoBERTa, SBERT 용)
+      # 컨테이너가 삭제되어도 다시 다운로드하지 않게 저장
+      - ai_model_cache:/root/.cache/huggingface
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend/mutr-web 
+      dockerfile: Dockerfile
+    container_name: mutr-frontend
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  ai_model_cache:

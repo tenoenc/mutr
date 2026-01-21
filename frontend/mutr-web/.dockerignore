@@ -1,0 +1,13 @@
+# 로컬 의존성 및 빌드 결과물 제외
+node_modules
+dist
+.git
+
+# 환경 설정 및 로그
+.env
+*.log
+npm-debug.log*
+
+# 운영 체제 찌꺼기
+.DS_Store
+Thumbs.db

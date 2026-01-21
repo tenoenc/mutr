@@ -12,9 +12,10 @@ service AnalysisService {
 }
 
 message AnalysisRequest {
-  string content = 1;          // 현재 노드 글
-  string parent_summary = 2;   // 이전 노드 요약 (변조용)
-  string full_context = 3;     // 이전까지의 전체 글 (요약용)
+  string content = 1;          // 현재 노드의 글
+  string parent_topic = 2;     // 이전 노드의 주제
+  string baseline_topic = 3;   // 이전 노드의 주제 (500자 외)
+  string full_context = 4;     // 전체 글 (500자 내)
 }
 
 message AnalysisResponse {

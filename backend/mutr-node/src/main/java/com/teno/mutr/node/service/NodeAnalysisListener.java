@@ -27,7 +27,7 @@ public class NodeAnalysisListener {
     @Transactional
     public void handleNodeCreated(NodeCreateEvent event) {
         // 1. AI 분석 수행
-        AnalysisResult result = aiAnalysisService.analyze(event.content(), event.parentSummary(),
+        AnalysisResult result = aiAnalysisService.analyze(event.content(), event.parentTopic(), event.baselineTopic(),
                 event.fullContext());
 
         // 2. 타입 변환 (안정성 확보)

@@ -7,7 +7,8 @@ import auth from '../utils/auth'
  * 모든 API 요청의 기본 URL과 공통 헤더를 정의합니다.
  */
 const api = axios.create({
-  baseURL: 'http://localhost:8080', // 백엔드 서버 주소
+  // baseURL: 'http://localhost:8080', // 백엔드 서버 주소
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },

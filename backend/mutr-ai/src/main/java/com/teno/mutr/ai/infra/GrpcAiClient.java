@@ -13,11 +13,12 @@ public class GrpcAiClient {
     @GrpcClient("mutr-ai-engine")
     private AnalysisServiceGrpc.AnalysisServiceBlockingStub analysisServiceStub;
 
-    public AnalysisResult call(String content, String parentSummary, String fullContext) {
+    public AnalysisResult call(String content, String parentTopic, String baselineTopic, String fullContext) {
         // 1. gRPC 요청 객체 생성
         AnalysisRequest request = AnalysisRequest.newBuilder()
                 .setContent(content)
-                .setParentSummary(parentSummary != null ? parentSummary : "")
+                .setParentTopic(parentTopic != null ? parentTopic : "")
+                .setBaselineTopic(baselineTopic != null ? baselineTopic : "")
                 .setFullContext(fullContext != null ? fullContext : "")
                 .build();
 
