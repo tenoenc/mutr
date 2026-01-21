@@ -58,6 +58,8 @@ services:
     container_name: mutr-frontend
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:80"
+    environment:
+      BACKEND_HOST_PORT: ${BACKEND_HOST_PORT:-8080}
     depends_on:
       - backend
     restart: always

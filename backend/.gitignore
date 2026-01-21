@@ -37,3 +37,4 @@ out/
 .vscode/
 
 **/resources/**local.yml
+**/src/main/proto
