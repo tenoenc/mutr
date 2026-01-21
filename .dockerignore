@@ -4,12 +4,14 @@ ai-server/.cache/
 **/__pycache__/
 
 # 다른 서비스의 무거운 파일들 제외
+postgres_data/
 **/node_modules/
 **/dist/
 **/.gradle/
 **/build/
 
 # 기타 불필요한 파일
+certbot/
 .git/
 .idea/
 .vscode/

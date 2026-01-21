@@ -138,7 +138,7 @@ docker-compose up --build
 2. 상단의 **[존 만들기]**를 클릭합니다.
 3. 다음 정보를 입력합니다.
    - 존 이름: `mutr-zone`
-   - DNS 이름: mutr.cloud
+   - DNS 이름: `mutr.cloud`
    - 공개 범위: 공개 (Public)
 4. **[만들기]**를 누릅니다.
 
@@ -160,4 +160,10 @@ docker-compose up --build
 
 네임서버 주인은 바뀌었지만, 아직 도메인이 어느 IP로 가야할 지는 모르는 상태입니다.
 
-1. 다시 GCP Cloud DNS의 `mutr-zone`으로 돌아와, []
+1. 다시 GCP Cloud DNS의 `mutr-zone`으로 돌아와, **[표준 추가]**를 누릅니다.
+2. A 레코드를 설정합니다.
+    - DNS 이름: 비워둡니다. `mutr.cloud` 자체를 의미합니다.
+    - IPv4 주소: GCP 고정 외부 IP 주소를 입력합니다.
+
+네임서버 변경은 전 세계 통신사에 퍼지는 데 시간이 걸립니다. (보통 10분~1시간, 최대 24시간)
+
