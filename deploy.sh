@@ -59,8 +59,16 @@ for i in {1..15}; do
     fi
 
     if [ $i -eq 15 ]; then
-        echo ">>> 배포 실패: 신규 서버가 150초 이내에 응답하지 않습니다."
-        docker compose -f docker-compose.yml -f docker-compose.prod.yml stop backend frontend # 실패 시 신규 컨테이너 중지
+        echo ">>> 배포 실패: 신규 서버가 응답하지 않습니다. 롤백을 시작합니다."
+
+        docker compose -p mutr-$TARGET_COLOR stop backend frontend
+        cat <<EOF | sudo tee /etc/nginx/conf.d/service_url.inc
+set \$service_frontend_url http://127.0.0.1:$BLUE_FRONTEND_PORT;
+set \$service_backend_url http://127.0.0.1:$BLUE_BACKEND_PORT;
+EOF
+        sudo systemctl reload nginx
+
+        echo ">>> 롤백 완료: 서비스가 이전 버전($BEFORE_COLOR)으로 유지됩니다."
         exit 1
     fi
     echo ">>> 아직 서버가 준비되지 않았습니다. 대기 중... ($i/15)"
