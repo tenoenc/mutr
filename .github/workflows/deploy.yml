@@ -44,33 +44,49 @@ jobs:
               - 'proto/**'
             frontend:
               - 'frontend/**'
+
+      # 2. 테스트 환경 구성 및 테스트 실행
+
+      - name: Set up JDK 21
+        if: steps.filter.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
       
-      # 2. GCP 인증
+      - name: Run Backend Tests
+        if: steps.filter.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          cd backend
+          chmod +x gradlew
+          ./gradlew test
+      
+      # 3. GCP 인증
       - id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      # 3. Docker를 Artifact Registry에 로그인 시킴
+      # 4. Docker를 Artifact Registry에 로그인 시킴
       - name: 'Docker login'
         run: |
           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      # 4. AI 서버 빌드 및 푸시 (AI 폴더 변경 시에만 실행)
+      # 5. AI 서버 빌드 및 푸시 (AI 폴더 변경 시에만 실행)
       - name: Build and Push AI Server
         if: steps.filter.outputs.ai == 'true'
         run: |
           docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/ai-server:latest -f ./ai-server/Dockerfile .
           docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/ai-server:latest
 
-      # 5. 백엔드 빌드 및 푸시 (백엔드 폴더 변경 시 또는 기존처럼 항상 실행 가능)
+      # 6. 백엔드 빌드 및 푸시 (백엔드 폴더 변경 시 또는 기존처럼 항상 실행 가능)
       - name: Build and Push Backend
         if: steps.filter.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/backend:latest -f ./backend/Dockerfile .
           docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/backend:latest
 
-      # 6. 프론트엔드 빌드 및 푸시 (프론트엔드 폴더 변경 시에만 실행)
+      # 7. 프론트엔드 빌드 및 푸시 (프론트엔드 폴더 변경 시에만 실행)
       - name: Build and Push Frontend
         if: steps.filter.outputs.frontend == 'true'
         run: |
