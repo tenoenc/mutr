@@ -6,18 +6,59 @@ on:
   push:
     branches: [ "main" ] # main 브랜치에 코드가 push될 때만 실행
 
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-northeast3
+  REPO_NAME: mutr-repo
+
 jobs:
-  # 'deploy'라는 이름의 작업 정의
-  deploy:
+  # 'build-and-push'라는 이름의 작업 정의
+  build-and-push:
     # 작업을 실행할 가상 환경 (GitHub에서 제공하는 최신 우분투)
     runs-on: ubuntu-latest
-
     steps:
-      # 1단계: GitHub 서버(Runner)로 소스 코드를 가져옴
       - name: Checkout code
         uses: actions/checkout@v4
       
-      # 2단계: SSH를 통해 GCP VM에 접속하여 배포 명령 실행
+      # 1. GCP 인증
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      # 2. Docker를 Artifact Registry에 로그인 시킴
+      - name: 'Docker login'
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      # 3. 백엔드 빌드 및 푸시
+      - name: Build and Push Backend
+        run: |
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/backend:latest -f ./backend/Dockerfile .
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/backend:latest
+
+      # 4. 프론트엔드 빌드 및 푸시
+      - name: Build and Push Frontend
+        run: |
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontend:latest -f ./frontend/mutr-web/Dockerfile ./frontend/mutr-web
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontend:latest
+  
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      # 설정 파일들만 서버로 전송 (SCP)
+      - name: Copy config files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_HOST }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          source: "docker-compose.yml,docker-compose.prod.yml,deploy.sh,frontend/mutr-web/nginx.conf.template"
+          target: "~/mutr/"
+
+      # SSH를 통해 GCP VM에 접속하여 배포 명령 실행
       - name: SSH Remote Commands
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -32,11 +73,9 @@ jobs:
             # 1. 프로젝트 폴더로 이동
             cd ~/mutr
             
-            # 2. GitHub 저장소의 최신 코드를 서버로 당겨옴
-            git pull origin main
+            # 2. 저장소에서 이미지 가져오기
+            docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
             
-            # 3. 배포 스크립트에 실행 권한 부여
+            # 3. 블루-그린 무중단 배포 스크립트 실행
             chmod +x deploy.sh
-            
-            # 4. 우리가 만든 블루-그린 무중단 배포 스크립트 실행
             ./deploy.sh
