@@ -1,40 +1,26 @@
-HELP.md
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
-
-### IntelliJ IDEA ###
+# Editor directories
+.vscode
 .idea
-*.iws
+
+# Gradle
+.gradle/ 
+build/
+**/build/
+
+# IntelliJ IDEA
 *.iml
-*.ipr
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# Generated Sources (QueryDSL, Annotation Processor)
+generated/
+**/generated/
 
-### VS Code ###
-.vscode/
+# Java binaries
+*.class
+*.jar
+*.war
 
-**/resources/**local.yml
-**/src/main/proto
+# Caches & Temp
+.cache/
+tmp/
+**/tmp/

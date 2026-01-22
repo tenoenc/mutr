@@ -1,35 +1,23 @@
-### JetBrains IDE (IntelliJ) ###
-.idea/
-*.iml
-*.iws
-out/
+# Editor directories
+.vscode
+.idea
 
-### Eclipse ###
-.settings/
-.classpath
-.project
-
-### Build Tools (Gradle) ###
-build/
-.gradle/
-bin/
-
-### Docker Data (중요!) ###
-# DB 데이터는 개인 로컬 환경이므로 절대 공유하지 않습니다.
-postgres_data/
-
-### QueryDSL Generated Classes ###
-# 빌드 시 자동 생성되는 Q-Class들은 소스 코드 관리 대상이 아닙니다.
-**/src/main/generated/
-**/build/generated/
-
-### Environment / Secrets ###
-# 비밀번호나 API 키가 포함된 로컬 설정 파일
-*.log
-.env
-application-local.yml
-mutr-app/src/main/resources/application-local.yml
-
-### OS ###
+# OS files
 .DS_Store
-Thmubs.db
+Thumbs.db
+*.swp
+
+# Environment variables (Security)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database & Cache
+postgres_data/ 
+.cache/ 
+
+# Logs
+*.log
+logs/

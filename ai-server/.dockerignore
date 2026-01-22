@@ -1,0 +1,18 @@
+# Python bytecode
+__pycache__/ 
+*.py[cod]
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# ML/AI 특화
+models/
+data/
+*.pt
+*.pth
+*.onnx
+
+# Tokenizer 캐시
+emji_tokenizer/

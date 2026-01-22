@@ -17,7 +17,7 @@
 1. **GCP 콘솔 접속**: [Google Cloud 콘솔](https://console.cloud.google.com/)에 접속하여 로그인합니다.
 2. **무료 평가판 신청**: 상단의 **[무료로 시작하기]** 버튼을 누릅니다.
 3. **정보 입력**: 국가(대한민국)를 선택하고 약관에 동의합니다.
-4. **결제 수단 등록**: 해외 결제 가능한 카드를 등록합니다. 90일 종료 전까지는 절대 자동 결제되지 않으니 안심하셔도 됩니다.
+4. **결제 수단 등록**: 해외 결제 가능한 카드를 등록합니다. 90일 종료 전까지는 절대 자동 결제되지 않으니 안심해도 됩니다.
 
 ### 2. 서버(VM 인스턴스) 만들기
 
@@ -124,15 +124,11 @@ ssh -i <비밀키_경로> <사용자이름>@<고정_외부_IP>
 docker-compose up --build
 ```
 
-### 7. 도메인 설정
+## DNS 등록 및 HTTPS 적용하기
 
-**1. 도메인 확인**
+### 1. GCP Cloud DNS에서 영역(Zone) 생성
 
-가비아에서 사용 가능한 도메인을 확인합니다.
-
-**2. GCP Cloud DNS에서 영역(Zone) 생성**
-
-가장 먼저 GCP에 도메인을 관리할 공간을 만들어야 합니다.
+가비아에서 사용 가능한 도메인을 확인했으면, GCP에 도메인을 관리할 공간을 만들어야 합니다.
 
 1. **[Cloud DNS]** 메뉴로 이동합니다.
 2. 상단의 **[존 만들기]**를 클릭합니다.
@@ -142,21 +138,19 @@ docker-compose up --build
    - 공개 범위: 공개 (Public)
 4. **[만들기]**를 누릅니다.
 
-**3. Google 네임서버 주소 확인**
-
 존이 생성되면 여러 개의 레코드가 자동으로 나타납니다.
 
 1. 유형이 NS로 된 레코드를 찾습니다.
 2. 데이터 항목에 4개의 주소가 있습니다. 이 4개의 주소를 메모자 등에 복사합니다.
 
-**4. 가비아에서 네임서버 변경**
+### 2. 가비아에서 네임서버 변경
 
 이제 가비아에게 "이 도메인의 관리는 구글에게 맡기겠다"고 선언하는 단계입니다.
 
 1. 가비아 네임서버 선택에서 [타사 네임서버] 탭을 클릭하고, 아까 복사한 구글 네임서버 4개를 순서대로 입력합니다.
 2. **[적용]**을 누르고 소유자 인증을 완료합니다.
 
-**5. GCP에서 도메인과 서버 IP 연결 (A 레코드)**
+### 3. GCP에서 도메인과 서버 IP 연결 (A 레코드)
 
 네임서버 주인은 바뀌었지만, 아직 도메인이 어느 IP로 가야할 지는 모르는 상태입니다.
 
@@ -165,5 +159,87 @@ docker-compose up --build
     - DNS 이름: 비워둡니다. `mutr.cloud` 자체를 의미합니다.
     - IPv4 주소: GCP 고정 외부 IP 주소를 입력합니다.
 
-네임서버 변경은 전 세계 통신사에 퍼지는 데 시간이 걸립니다. (보통 10분~1시간, 최대 24시간)
+네임서버 변경은 전 세계 통신사에 퍼지는 데 시간이 걸립니다. (보통 10분~1시간, 최대 24시간) 기다리면, `http://mutr.cloud`를 통해 서버 IP에 접근할 수 있습니다.
 
+### 4. SSL 인증서 발급
+
+인증서를 처음 받을 때는 임시 Nginx를 띄워 Let's Encypt가 80번 포트를 통해 SSL 인증서를 발급할 수 있도록 합니다.
+
+```nginx
+server {
+    listen 80;
+    server_name mutr.cloud;
+
+    # Certbot 인증을 위한 경로
+    location /.well-known/acme-challenge/ {
+        root /var/lib/letsencrypt;
+    }
+
+    # ...
+}
+```
+
+컨테이너를 띄우고, 다음 명령어를 실행하면 SSL 인증서가 발급됩니다.
+
+```bash
+docker run -it --rm --name certbot \
+  -v "$(pwd)/certbot/conf:/etc/letsencrypt" \
+  -v "$(pwd)/certbot/www:/var/lib/letsencrypt" \
+  certbot/certbot certonly --webroot \
+  -w /var/lib/letsencrypt \
+  -d mutr.cloud \
+  --email <이메일_계정> --agree-tos --no-eff-email
+```
+
+### 5. SSL 설정
+
+HTTP로 들어오면 HTTPS로 자동 이동(Redirect)시키고, SSL 인증서를 인식하도록 설정합니다.
+
+```nginx
+server {
+    listen 80;
+    server_name ${DOMAIN_NAME};
+
+    # Certbot 인증을 위한 경로 (중요!)
+    location /.well-known/acme-challenge/ {
+        root /var/lib/letsencrypt;
+    }
+
+    # 모든 HTTP 요청을 HTTPS로 리다이렉트
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name ${DOMAIN_NAME};
+
+    # SSL 인증서 경로 (Certbot이 발급 후 이 위치에 저장합니다)
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem;
+
+    # 보안 설정 (권장)
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # 프론트엔드 정적 파일 서빙
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 프록시 (기존 설정과 동일하게 유지)
+    location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # ... 웹소켓 및 소셜 로그인 설정도 동일하게 복사 ...
+}
+```
+
+이제 `https://mutr.cloud`를 통해 안전하게 서버에 접속할 수 있습니다.

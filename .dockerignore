@@ -1,19 +1,58 @@
-# AI 모델 및 캐시 제외
-ai-server/models/
-ai-server/.cache/
-**/__pycache__/
-
-# 다른 서비스의 무거운 파일들 제외
-postgres_data/
-**/node_modules/
-**/dist/
-**/.gradle/
-**/build/
-
-# 기타 불필요한 파일
-certbot/
-.git/
+# =================================================================
+# 1. OS & IDE (공통 임시 파일)
+# =================================================================
+.git
+.gitignore
 .idea/
 .vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# =================================================================
+# 2. Security & Global Data (보안 및 로컬 데이터)
+# =================================================================
 .env
+.env.*
+postgres_data/
 *.log
+logs/
+.cache/
+**/tmp/
+
+# =================================================================
+# 3. AI-Server (Python/AI 전용)
+# =================================================================
+ai-server/__pycache__/
+ai-server/*.py[cod]
+ai-server/.venv/
+ai-server/venv/
+ai-server/env/
+ai-server/models/
+ai-server/data/
+ai-server/*.pt
+ai-server/*.pth
+ai-server/*.onnx
+ai-server/emji_tokenizer/
+
+# =================================================================
+# 4. Backend (Java/Gradle 전용 - 모든 하위 모듈 포함)
+# =================================================================
+backend/.gradle/
+**/build/
+**/generated/
+**/reports/
+*.class
+*.jar
+
+# =================================================================
+# 5. Frontend (mutr-web 전용)
+# =================================================================
+**/node_modules/
+frontend/mutr-web/.vite/
+frontend/mutr-web/.vite-temp/
+frontend/mutr-web/@babel/
+frontend/mutr-web/dist/
+frontend/mutr-web/build/
+**/coverage/
+**/__tests__/
