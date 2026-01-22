@@ -18,8 +18,6 @@ server_port = int(os.getenv("AI_SERVER_PORT", "50051"))
 n_gpu_layers = int(os.getenv("n_gpu_layers", "0"))
 n_threads = int(os.getenv("n_threads", "6"))
 
-print("this is test2")
-
 class MUTRModelEngine:
     def __init__(self):
         self.device = torch.device("cpu")
