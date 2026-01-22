@@ -1,4 +1,0 @@
-services:
-  frontend:
-    ports:
-      - "${TARGET_FRONTEND_PORT:-3000}:80"
