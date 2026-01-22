@@ -7,6 +7,10 @@ on:
     branches: [ "main" ] # main 브랜치에 코드가 push될 때만 실행
     paths:
       - 'ai-server/**'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'proto/**'
+      - '.github/workflows/deploy.yml'
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -31,15 +35,15 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
-        filters: |
-          ai:
-            - 'ai-server/**'
-            - 'proto/**'
-          backend:
-            - 'backend/**'
-            - 'proto/**'
-          frontend:
-            - 'frontend/**'
+          filters: |
+            ai:
+              - 'ai-server/**'
+              - 'proto/**'
+            backend:
+              - 'backend/**'
+              - 'proto/**'
+            frontend:
+              - 'frontend/**'
       
       # 2. GCP 인증
       - id: 'auth'
@@ -110,7 +114,7 @@ jobs:
             gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
             
             # 3. 저장소에서 이미지 가져오기
-            docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             
             # 4. 블루-그린 무중단 배포 스크립트 실행
             chmod +x deploy.sh
