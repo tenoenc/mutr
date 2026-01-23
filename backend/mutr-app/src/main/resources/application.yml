@@ -79,8 +79,9 @@ grpc:
 
       # 3. 연결 유지 설정
       enable-keep-alive: true
-      keep-alive-without-calls: true
-      keep-alive-time: 20s
+      keep-alive-time: 60s
+      keep-alive-timeout: 20s
+      keep-alive-without-calls: false   # 요청이 없을 때는 핑을 보내지 않음
 
       # 4. 메시지 크기 제한 (AI 분석 결과가 길어질 경우 대비)
       max-inbound-message-size: 10485760 # 10MB

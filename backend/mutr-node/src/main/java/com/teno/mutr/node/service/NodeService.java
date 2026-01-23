@@ -75,10 +75,10 @@ public class NodeService {
 
         // 7. AI 엔진 호출 (gRPC 통신)
         eventPublisher.publishEvent(new NodeCreateEvent(
-                node.getId(),
-                node.getParentId(),
-                node.getContent(),
-                node.getParentTopic(),
+                savedNode.getId(),
+                savedNode.getParentId(),
+                savedNode.getContent(),
+                savedNode.getParentTopic(),
                 baselineTopic,
                 fullContext
         ));
