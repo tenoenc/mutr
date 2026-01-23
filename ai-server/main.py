@@ -139,7 +139,7 @@ class MUTRAnalysisServicer(mutr_analysis_pb2_grpc.AnalysisServiceServicer):
         )
 
 def download_model():
-    # 1. 설정 (사용하려는 모델에 맞춰 수정하세요)
+    # 1. 설정
     repo_id = "Bllossom/llama-3.2-Korean-Bllossom-3B-gguf-Q4_K_M"
     filename = "llama-3.2-Korean-Bllossom-3B-gguf-Q4_K_M.gguf"
     local_dir = "./models"
