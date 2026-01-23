@@ -15,8 +15,10 @@ import mutr_analysis_pb2
 import mutr_analysis_pb2_grpc
 
 server_port = int(os.getenv("AI_SERVER_PORT", "50051"))
-n_gpu_layers = int(os.getenv("n_gpu_layers", "0"))
+n_ctx = int(os.getenv("n_ctx", "1024"))
 n_threads = int(os.getenv("n_threads", "6"))
+n_gpu_layers = int(os.getenv("n_gpu_layers", "18"))
+n_batch = int(os.getenv("n_batch", "512"))
 
 class MUTRModelEngine:
     def __init__(self):
@@ -26,11 +28,11 @@ class MUTRModelEngine:
         # 외국어 유출 문제를 근본적으로 해결하고 자연스러운 한국어 생성을 지원합니다.
         self.llm = Llama(
             model_path=model_path,
-            n_ctx=1024, 
+            n_ctx=n_ctx, 
             n_threads=n_threads,
             n_gpu_layers=n_gpu_layers,
-            n_batch=512,
-            verbose=True
+            n_batch=n_batch,
+            verbose=False
         )
         self.llm_lock = threading.Lock()
         
@@ -73,8 +75,7 @@ class MUTRModelEngine:
 
         return final_topic
 
-    def analyze(self, content, parent_topic, baseline_topic, full_context):
-        # [STEP 1] 감정 분석
+    def _analyze_emotion_internal(self, content):
         sent_inputs = self.sent_tokenizer(content, return_tensors="pt", truncation=True, max_length=512).to(self.device)
         with torch.no_grad():
             sent_outputs = self.sent_model(**sent_inputs)
@@ -82,9 +83,24 @@ class MUTRModelEngine:
             conf, pred = torch.max(sent_probs, dim=-1)
             raw_emotion = self.sent_model.config.id2label[pred.item()]
             emotion_label = self.emotion_map.get(raw_emotion, raw_emotion)
+            return emotion_label, float(conf.item())
 
-        # [STEP 2] 주제 추출 (한국어 프롬프트 고도화)
-        # 모델의 모국어인 한국어로 지시하여 더 정확한 결과물을 유도합니다.
+    def _analyze_mutation_internal(self, content, parent_topic):
+        if not parent_topic or not parent_topic.strip():
+            return 0.0
+        embeddings = self.mut_model.encode([parent_topic, content], convert_to_tensor=True)
+        raw_sim = util.cos_sim(embeddings[0], embeddings[1]).item()
+        mutation_score = self._calibrate_mutation(raw_sim)
+        return mutation_score
+
+    def analyze(self, content, parent_topic, baseline_topic, full_context):
+        # [STEP 1] 감정 분석
+        emotion_label, confidence = self._analyze_emotion_internal(content)
+
+        # [STEP 2] 변조 분석
+        mutation_score = self._analyze_mutation_internal(content, parent_topic)
+
+        # [STEP 3] LLM 실행
         prompt = (
             f"<|start_header_id|>system<|end_header_id|>\n\n"
             f"당신은 기록의 흐름을 분석하는 서사 전문가 '성단'입니다. "
@@ -117,14 +133,7 @@ class MUTRModelEngine:
         gen_topic = response['choices'][0]['text'].strip()
         final_topic = self.get_final_topic(gen_topic, baseline_topic)
 
-        # [STEP 3] 변조 점수 계산
-        mutation_score = 0.0
-        if parent_topic and parent_topic.strip():
-            embeddings = self.mut_model.encode([parent_topic, content], convert_to_tensor=True)
-            raw_sim = util.cos_sim(embeddings[0], embeddings[1]).item()
-            mutation_score = self._calibrate_mutation(raw_sim)
-
-        return final_topic, emotion_label, float(conf.item()), float(mutation_score)
+        return final_topic, emotion_label, confidence, mutation_score
 
 class MUTRAnalysisServicer(mutr_analysis_pb2_grpc.AnalysisServiceServicer):
     def __init__(self):
