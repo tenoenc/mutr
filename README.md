@@ -257,13 +257,99 @@ server {
 
 부모 노드의 분석(요약 및 토픽 확정)이 완료되기 전에 자식 노드의 분석 요청이 AI 서버에 도착하면, `parent_topic`이 빈 상태로 전달되어 `mutation_score` 계산이 누락됩니다.
 
-AI 서버는 전역 락(llm_lock)을 사용하여 요청을 순차적으로 처리하고 있습니다. 따라서 백엔드에서 무작위로 비동기 요청을 보내면, AI 서버의 큐에 먼저 들어간 자식 노드가 아직 분석되지 않은 부모 노드를 참조하게 되는 구조적 불일치가 발생합니다.
+AI 서버는 전역 락(`llm_lock`)을 사용하여 요청을 순차적으로 처리하고 있습니다. 따라서 백엔드에서 무작위로 비동기 요청을 보내면, AI 서버의 큐에 먼저 들어간 자식 노드가 아직 분석되지 않은 부모 노드를 참조하게 되는 구조적 불일치가 발생합니다.
 
 ### 접근 방법: 의존성 체이닝
 
 가장 효율적인 방식은 부모의 분석 완료가 자식의 분석 시작을 트리거 하는 구조입니다. 이는 불필요한 대기 시간이나 반복적인 DB 조회를 없애고, 데이터가 준비된 즉시 분석을 수행하게 합니다.
 
 **핵심 메커니즘**
-1. **즉시 실헹**: 부모가 없는 루트 노드이거나, 부모의 토픽이 이미 확정된 경우 즉시 AI 서버로 요청을 보냅니다.
+1. **즉시 실행**: 부모가 없는 루트 노드이거나, 부모의 토픽이 이미 확정된 경우 즉시 AI 서버로 요청을 보냅니다.
 2. **대기열 등록**: 부모가 현재 분석 중이라면, 해당 부모 ID를 키로 하는 메모리 내 대기열(Wating Queue)에 자식 이벤트를 저장합니다.
 3. **연쇄 해제**: 부모 노드의 분석이 완료되는 시점에 자신을 기다리던 자식 노드들의 이벤트를 꺼내어 AI 서버로 보냅니다.
+
+```java
+@Component
+public class AnalysisCoordinator {
+    // Key: 부모 노드 ID, Value: 부모의 분석 완료를 기다리는 자식 노드 이벤트들
+    private final Map<Long, List<NodeCreateEvent>> waitingQueue = new ConcurrentHashMap<>();
+
+    // 분석이 성공적으로 끝난 노드 ID를 추적
+    private final Set<Long> completeNodes = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    // 자식을 대기열에 추가
+    public void hold(Long parentId, NodeCreateEvent event) {
+        waitingQueue.computeIfAbsent(parentId, k -> new CopyOnWriteArrayList<>()).add(event);
+    }
+
+    // 부모의 준비 상태 확인
+    public boolean isReady(Long parentId) {
+        if (parentId == null) return true;
+        return completeNodes.contains(parentId);
+    }
+
+    // 분석 완료 처리 및 대기 중인 자식 목록 반환
+    public List<NodeCreateEvent> complete(Long nodeId) {
+        completeNodes.add(nodeId);
+        return waitingQueue.remove(nodeId);
+    }
+}
+```
+
+```java
+@Component
+@RequiredArgsConstructor
+public class NodeAnalysisListener {
+    private final AiAnalysisService aiAnalysisService;
+    private final NodeRepository nodeRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final AnalysisCoordinator coordinator;
+
+    @Async
+    @EventListener
+    @Transactional
+    public void handleNodeCreated(NodeCreateEvent event) {
+        // 부모가 준비되었는지 확인 후 처리 혹은 대기
+        if (coordinator.isReady(event.parentId())) {
+            processAnalysis(event);
+        } else {
+            coordinator.hold(event.parentId(), event);
+        }
+    }
+
+    private void processAnalysis(NodeCreateEvent event) {
+        // 1. 최신 부모 토픽 조회 (부모가 막 분석을 끝냈으므로 DB에서 가져옴)
+        String latestParentTopic = "";
+        if (event.parentId() != null) {
+            latestParentTopic = nodeRepository.findById(event.parentId())
+                    .map(Node::getTopic).orElse("");
+        }
+
+        // 2. AI 분석 수행 (부모 토픽 전달 보장)
+        AnalysisResult result = aiAnalysisService.analyze(
+                event.content(), latestParentTopic, event.baselineTopic(), event.fullContext()
+        );
+
+        Emotion validatedEmotion = Emotion.from(result.emotion());
+
+        // 3. 노드 정체성 확정 및 저장
+        Node node = nodeRepository.findById(event.nodeId()).orElseThrow();
+        node.defineIdentity(
+                result.topic(),
+                MutationInfo.mutate(result.mutationScore()),
+                validatedEmotion,
+                result.confidence()
+        );
+        nodeRepository.save(node);
+
+        // 4. 실시간 알림 전송
+        messagingTemplate.convertAndSend("/topic/galaxy/public", NodeResponse.from(node));
+
+        // 5. 자신을 기다리는 자식들이 있다면 연쇄 실행
+        List<NodeCreateEvent> waitingChildren = coordinator.complete(node.getId());
+        if (waitingChildren != null) {
+            waitingChildren.forEach(this::processAnalysis);
+        }
+    }
+}
+```
