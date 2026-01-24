@@ -5,26 +5,62 @@ import com.teno.mutr.node.domain.event.NodeCreateEvent;
 import com.teno.mutr.node.domain.repository.AnalysisContextProjection;
 import com.teno.mutr.node.domain.repository.NodeRepository;
 import com.teno.mutr.node.domain.vo.AnalysisStatus;
+import io.grpc.health.v1.HealthCheckRequest;
+import io.grpc.health.v1.HealthCheckResponse;
+import io.grpc.health.v1.HealthGrpc;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class AnalysisRecoveryService {
     private final NodeRepository nodeRepository;
+    private final HealthGrpc.HealthBlockingStub healthStub;
     private final ApplicationEventPublisher eventPublisher;
 
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
-    public void recoverUnfinishedTasks() {
+    public void onApplicationReady() {
+        CompletableFuture.runAsync(this::waitForAiServerAndRecover);
+    }
+
+    private void waitForAiServerAndRecover() {
+        log.info(">>> AI 서버 헬스체크 시작...");
+        int attempts = 0;
+
+        while (attempts < 30) {
+            try {
+                HealthCheckRequest request = HealthCheckRequest.newBuilder().setService("").build();
+                HealthCheckResponse response = healthStub.check(request);
+
+                if (response.getStatus() == HealthCheckResponse.ServingStatus.SERVING) {
+                    log.info(">>> AI 서버 준비 완료. 복구 작업을 시작합니다.");
+                    performRecovery();
+                    return;
+                }
+            } catch (Exception e) {
+                log.warn(">>> AI 서버가 아직 응답하지 않습니다. (시도 {}/30)", attempts + 1);
+            }
+
+            try {
+                Thread.sleep(10000);
+                attempts++;
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+        log.error(">>> AI 서버 헬스체크 타임아웃. 복구 작업에 실패했습니다.");
+    }
+
+    private void performRecovery() {
         log.info(">>> 서버 재시작에 따른 미완료 분석 작업 복구 시작");
         List<Node> unfinishedNodes = nodeRepository.findAllByAnalysisStatusIn(
                 List.of(AnalysisStatus.PENDING, AnalysisStatus.PROCESSING)

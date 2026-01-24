@@ -1,5 +1,6 @@
 grpcio==1.68.1
 grpcio-tools==1.68.1
+grpcio-health-checking==1.68.1
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.5.1
 torchaudio==2.5.1

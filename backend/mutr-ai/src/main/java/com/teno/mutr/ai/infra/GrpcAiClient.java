@@ -1,9 +1,9 @@
 package com.teno.mutr.ai.infra;
 
 import com.teno.mutr.ai.domain.AnalysisResult;
-import com.teno.mutr.ai.infra.grpc.stubs.AnalysisRequest;
-import com.teno.mutr.ai.infra.grpc.stubs.AnalysisResponse;
-import com.teno.mutr.ai.infra.grpc.stubs.AnalysisServiceGrpc;
+import com.teno.mutr.core.infra.grpc.stubs.AnalysisRequest;
+import com.teno.mutr.core.infra.grpc.stubs.AnalysisResponse;
+import com.teno.mutr.core.infra.grpc.stubs.AnalysisServiceGrpc;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
 
