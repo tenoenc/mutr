@@ -19,4 +19,3 @@ services:
       n_gpu_layers: 0
       n_threads: 2
       n_batch: 128
-      PYTHONUNBUFFERED: "1"
