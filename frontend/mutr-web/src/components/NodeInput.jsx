@@ -78,7 +78,6 @@ export default function NodeInput({ camera, selectedNode, onNodeCreated, onMoveT
       {/* 2. 메인 입력 폼 */}
       <form onSubmit={handleSubmit}>
         <input 
-          autoFocus // 페이지 로드 시 즉시 입력 가능 상태로 설정
           value={content} 
           onChange={e => setContent(e.target.value)}
           onKeyDown={(e) => {
