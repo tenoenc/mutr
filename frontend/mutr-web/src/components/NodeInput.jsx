@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as THREE from 'three';
 import api from '../api/axios'; // 인증 인터셉터가 포함된 axios 인스턴스
+import './NodeInput.css';
 
 /**
  * NodeInput: 사용자의 텍스트 입력을 받아 3D 공간상에 새로운 노드를 생성하는 컴포넌트
@@ -60,10 +61,7 @@ export default function NodeInput({ camera, selectedNode, onNodeCreated, onMoveT
 
   return (
     <div 
-      style={{ 
-        position: 'fixed', bottom: '50px', left: '50%', transform: 'translateX(-50%)', 
-        zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center' 
-      }} 
+      className="node-input-container"
       // 캔버스 드래그 등 3D 조작 이벤트가 입력창 영역에서 간섭되지 않도록 차단
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -72,12 +70,6 @@ export default function NodeInput({ camera, selectedNode, onNodeCreated, onMoveT
         <div 
           onClick={() => onMoveToNode(selectedNode)}
           className="continue-bubble"
-          style={{ 
-            background: 'rgba(255, 255, 255, 0.9)', padding: '12px 24px', 
-            borderRadius: '25px', fontSize: '15px', marginBottom: '15px',
-            cursor: 'pointer', color: '#5b7bb1', border: '2px solid #8ba3cf',
-            boxShadow: '0 8px 20px rgba(0,0,0,0.1)', fontWeight: '600'
-          }}
         >
           ID {selectedNode.id}에서 이어하기
         </div>
@@ -86,7 +78,6 @@ export default function NodeInput({ camera, selectedNode, onNodeCreated, onMoveT
       {/* 2. 메인 입력 폼 */}
       <form onSubmit={handleSubmit}>
         <input 
-          autoFocus // 페이지 로드 시 즉시 입력 가능 상태로 설정
           value={content} 
           onChange={e => setContent(e.target.value)}
           onKeyDown={(e) => {
@@ -97,12 +88,7 @@ export default function NodeInput({ camera, selectedNode, onNodeCreated, onMoveT
             if (e.key === 'Enter' && e.nativeEvent.isComposing) return; 
           }}
           placeholder="기록을 남기고 엔터를 누르세요..."
-          style={{ 
-            background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(20px)',
-            border: '2px solid white', padding: '18px 40px', borderRadius: '50px',
-            width: '600px', fontSize: '18px', outline: 'none', color: '#333',
-            textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
-          }}
+          className="node-input-field"
         />
         {/* 엔터 키 제출을 위한 숨겨진 버튼 */}
         <button type="submit" style={{ display: 'none' }} />
