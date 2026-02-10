@@ -46,11 +46,11 @@
 
 ### Concurrency & Consistency
 
-비동기 분산 환경에서 부모 노드의 분석이 완료되기 전 자식 노드가 생성될 때 발생하는 데이터 경합(Race Condition)을 제어하기 위해 **Redis 기반의 분산 코디네이터**를 구현했습니다.
+비동기 분산 환경에서 부모 노드의 분석이 완료되기 전 자식 노드가 생성될 때 발생하는 데이터 경합(Race Condition)을 제어하기 위해 **Redis 분산 락(Lock)과 대기열(Queue)을 활용한 동시성 제어 시스템**를 구현했습니다.
 
 1. **Analysis Queuing:** 분석 중인 부모 노드를 참조하는 자식 노드 생성 요청은 즉시 DB에 반영되지 않고 Redis 대기열(Waiting Queue)에 격리됩니다.
 2. **Event Broadcasting:** 부모 노드의 분석 완료 이벤트(`NodeAnalyzedEvent`)가 시스템 내부에 발행됩니다.
-3. **Atomic Release:** 코디네이터가 이벤트를 감지하여 대기 중이던 자식 노드들을 원자적으로 해제하고 분석 파이프라인에 재투입합니다.
+3. **Atomic Release:** 코디네이터가 이벤트를 감지하면, 분산 락을 통해 대기 중이던 자식 노드들을 원자적으로 해제하고 분석 파이프라인에 재투입합니다.
 
 ### Infrastructure & Deployment
 
