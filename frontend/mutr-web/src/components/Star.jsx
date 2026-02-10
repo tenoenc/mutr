@@ -2,6 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { Html, MeshDistortMaterial } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import './Star.css';
 
 /**
  * 감정 상태에 따른 시각적 색상 매핑
@@ -74,20 +75,6 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
   const baseScale = isRoot ? 1.3 : 0.8;
   const targetScale = isSelected ? baseScale * 1.3 : baseScale;
 
-  // HTML 오버레이 텍스트 스타일 정의
-  const topicBaseStyle = {
-    color: '#2c3e50',
-    fontWeight: '900',
-    fontSize: '24px',
-    whiteSpace: 'nowrap',
-    fontFamily: '"Noto Sans KR", sans-serif',
-    WebkitTextStroke: '1.5px #ffffff',
-    paintOrder: 'stroke fill',
-    transition: 'opacity 0.2s',
-    userSelect: 'none',
-    WebkitUserSelect: 'none'
-  };
-
   /**
    * 프레임별 애니메이션 및 상태 업데이트
    */
@@ -131,7 +118,7 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
       {/* 1. 노드 상단에 표시되는 부유형 토픽 (Html) */}
       {!isSelected && (
         <Html distanceFactor={25} position={[0, 2.5, 0]} center style={{ pointerEvents: 'none', zIndex: 1 }}>
-          <div ref={topicRef} style={topicBaseStyle}>
+          <div ref={topicRef} className="star-topic-text">
             {displayTopic}
           </div>
         </Html>
@@ -174,33 +161,26 @@ export default function Star({ node, isSelected, onSelect, onDoubleClick }) {
             onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick(node); }}
           >
             {/* 패널 상단 강조 토픽 */}
-            <div style={{ ...topicBaseStyle, marginBottom: '20px' }}>
+            <div className="star-topic-text">
               {displayTopic}
             </div>
 
             {/* 정보 카드 본체 */}
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(15px)',
-              border: `8px solid ${baseColor}`,
-              padding: '40px',
-              borderRadius: '40px',
-              color: '#333',
-              width: '640px',
-              boxShadow: `0 30px 60px rgba(0,0,0,0.15), 0 0 50px ${baseColor}55`,
-              fontSize: '32px',
-              lineHeight: '1.6',
-              animation: 'popIn 0.3s ease-out',
-              userSelect: 'none',
-              WebkitUserSelect: 'none'
-            }}>
+            <div 
+              className="star-info-card"
+              style={{
+                display: isAnalyzing ? 'none' : 'block', 
+                border: `8px solid ${baseColor}`,        // 동적 색상
+                boxShadow: `0 30px 60px rgba(0,0,0,0.15), 0 0 50px ${baseColor}55` // 동적 그림자
+              }}
+            >
               {/* 노드 메타 정보 헤더 */}
-              <div style={{ color: baseColor, fontWeight: '900', fontSize: '24px', marginBottom: '20px' }}>
+              <div className="star-card-header" style={{ color: baseColor }}>
                 {`[${currentTag}] ${adjective} 형체 #${nodeIdString} | ${node.authorNickname}`}
               </div>
               
               {/* 본문 텍스트 */}
-              <div style={{ color: '#2c3e50', wordBreak: 'break-all', fontWeight: '500' }}>
+              <div className="star-card-content">
                 {node.content}
               </div>
             </div>
