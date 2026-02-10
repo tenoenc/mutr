@@ -22,6 +22,7 @@ public class NodeResponse {
     private Long parentId;
     private Long rootId;
     private LocalDateTime cratedAt;
+    private String analysisStatus;
 
     public static NodeResponse from(Node node) {
         return NodeResponse.builder()
@@ -38,6 +39,7 @@ public class NodeResponse {
                 .parentId(node.getParentId())
                 .rootId(node.getRootId())
                 .cratedAt(node.getCreatedAt())
+                .analysisStatus(node.getAnalysisStatus().name())
                 .build();
     }
 }

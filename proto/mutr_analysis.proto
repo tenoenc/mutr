@@ -4,7 +4,7 @@ package mutr;
 
 // Java 관련 옵션 설정
 option java_multiple_files = true; // 메시지와 서비스를 개별 파일로 분리하여 인식률 향상
-option java_package = "com.teno.mutr.ai.infra.grpc.stubs"; // 생성될 자바 패키지 경로 지정
+option java_package = "com.teno.mutr.core.infra.grpc.stubs"; // 생성될 자바 패키지 경로 지정
 option java_outer_classname = "AnalysisProto"; // 바깥 클래스 이름 명시 (선택 사항)
 
 service AnalysisService {

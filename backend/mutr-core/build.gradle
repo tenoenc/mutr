@@ -1,23 +1,89 @@
+plugins {
+    id 'java-library'
+    id 'com.google.protobuf' version '0.9.4'
+}
+
+// 1. 전역 변수 설정
+def grpcVersion = '1.58.0'
+def protobufVersion = '3.24.0'
+def querydslVersion = '5.1.0'
+
+def grpcGeneratedDir = layout.buildDirectory.dir("generated/source/proto/main/grpc")
+def javaGeneratedDir = layout.buildDirectory.dir("generated/source/proto/main/java")
+def querydslDir = layout.buildDirectory.dir("generated/querydsl")
+
 dependencies {
     api 'org.springframework.boot:spring-boot-starter-data-jpa'
     api 'org.springframework.boot:spring-boot-starter-web'
 
-    // QueryDSL 필수 의존성 추가
-    implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
-    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
-    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+    // QueryDSL
+    implementation "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"
+    annotationProcessor "com.querydsl:querydsl-apt:${querydslVersion}:jakarta"
     annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+
+    // gRPC
+    api "io.grpc:grpc-netty-shaded:${grpcVersion}"
+    api "io.grpc:grpc-protobuf:${grpcVersion}"
+    api "io.grpc:grpc-stub:${grpcVersion}"
+    api "io.grpc:grpc-services:${grpcVersion}"
+    api "com.google.protobuf:protobuf-java:${protobufVersion}"
+    api 'jakarta.annotation:jakarta.annotation-api:1.3.5'
 }
 
-// QueryDSL 클래스가 생성될 경로 설정
-def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
-
+// 2. 소스 세트 설정
 sourceSets {
-    main.java.srcDirs += [ querydslDir ]
+    main {
+        java {
+            // 생성된 소스들을 컴파일 대상에 포함 (멀티모듈 전파용)
+            srcDirs += [grpcGeneratedDir, javaGeneratedDir, querydslDir]
+        }
+    }
 }
 
+// 3. gRPC 및 Proto 생성 관련 태스크 설정
+tasks.register('copyProto', Copy) {
+    from "../../proto"
+    into "src/main/proto"
+}
+
+protobuf {
+    protoc { artifact = "com.google.protobuf:protoc:3.24.0" }
+    plugins {
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.58.0" }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.dependsOn 'copyProto' // 모든 proto 생성 태스크는 복사부터 해야함
+            task.plugins { grpc {} }
+        }
+    }
+}
+
+// 4. 태스크 의존성 명시 (Gradle 8.x 가이드)
 tasks.withType(JavaCompile).configureEach {
-    options.getGeneratedSourceOutputDirectory().set(querydslDir)
+    dependsOn 'generateProto'
+}
+
+tasks.named('processResources') {
+    dependsOn 'copyProto'
+}
+
+// 5. JAR 패키징 설정
+jar {
+    enabled = true
+    archiveClassifier = ''
+    from sourceSets.main.output// 컴파일된 gRPC/QueryDSL 클래스를 JAR에 포함
+}
+
+bootJar { enabled = false }
+
+tasks.register('cleanGeneratedDir', Delete) {
+    delete querydslDir
+}
+
+// 6. 기타 설정 (QueryDSL 등)
+configurations {
+    querydsl.extendsFrom compileClasspath
 }
 
 clean {

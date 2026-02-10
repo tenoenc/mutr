@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 import re
 import grpc
+from grpc_health.v1 import health, health_pb2, health_pb2_grpc
 import numpy as np
 import threading
 from concurrent import futures
@@ -15,8 +16,10 @@ import mutr_analysis_pb2
 import mutr_analysis_pb2_grpc
 
 server_port = int(os.getenv("AI_SERVER_PORT", "50051"))
-n_gpu_layers = int(os.getenv("n_gpu_layers", "0"))
+n_ctx = int(os.getenv("n_ctx", "1024"))
 n_threads = int(os.getenv("n_threads", "6"))
+n_gpu_layers = int(os.getenv("n_gpu_layers", "18"))
+n_batch = int(os.getenv("n_batch", "512"))
 
 class MUTRModelEngine:
     def __init__(self):
@@ -26,11 +29,11 @@ class MUTRModelEngine:
         # 외국어 유출 문제를 근본적으로 해결하고 자연스러운 한국어 생성을 지원합니다.
         self.llm = Llama(
             model_path=model_path,
-            n_ctx=1024, 
+            n_ctx=n_ctx, 
             n_threads=n_threads,
             n_gpu_layers=n_gpu_layers,
-            n_batch=512,
-            verbose=True
+            n_batch=n_batch,
+            verbose=False
         )
         self.llm_lock = threading.Lock()
         
@@ -73,8 +76,7 @@ class MUTRModelEngine:
 
         return final_topic
 
-    def analyze(self, content, parent_topic, baseline_topic, full_context):
-        # [STEP 1] 감정 분석
+    def _analyze_emotion_internal(self, content):
         sent_inputs = self.sent_tokenizer(content, return_tensors="pt", truncation=True, max_length=512).to(self.device)
         with torch.no_grad():
             sent_outputs = self.sent_model(**sent_inputs)
@@ -82,9 +84,24 @@ class MUTRModelEngine:
             conf, pred = torch.max(sent_probs, dim=-1)
             raw_emotion = self.sent_model.config.id2label[pred.item()]
             emotion_label = self.emotion_map.get(raw_emotion, raw_emotion)
+            return emotion_label, float(conf.item())
 
-        # [STEP 2] 주제 추출 (한국어 프롬프트 고도화)
-        # 모델의 모국어인 한국어로 지시하여 더 정확한 결과물을 유도합니다.
+    def _analyze_mutation_internal(self, content, parent_topic):
+        if not parent_topic or not parent_topic.strip():
+            return 0.0
+        embeddings = self.mut_model.encode([parent_topic, content], convert_to_tensor=True)
+        raw_sim = util.cos_sim(embeddings[0], embeddings[1]).item()
+        mutation_score = self._calibrate_mutation(raw_sim)
+        return mutation_score
+
+    def analyze(self, content, parent_topic, baseline_topic, full_context):
+        # [STEP 1] 감정 분석
+        emotion_label, confidence = self._analyze_emotion_internal(content)
+
+        # [STEP 2] 변조 분석
+        mutation_score = self._analyze_mutation_internal(content, parent_topic)
+
+        # [STEP 3] LLM 실행
         prompt = (
             f"<|start_header_id|>system<|end_header_id|>\n\n"
             f"당신은 기록의 흐름을 분석하는 서사 전문가 '성단'입니다. "
@@ -117,14 +134,7 @@ class MUTRModelEngine:
         gen_topic = response['choices'][0]['text'].strip()
         final_topic = self.get_final_topic(gen_topic, baseline_topic)
 
-        # [STEP 3] 변조 점수 계산
-        mutation_score = 0.0
-        if parent_topic and parent_topic.strip():
-            embeddings = self.mut_model.encode([parent_topic, content], convert_to_tensor=True)
-            raw_sim = util.cos_sim(embeddings[0], embeddings[1]).item()
-            mutation_score = self._calibrate_mutation(raw_sim)
-
-        return final_topic, emotion_label, float(conf.item()), float(mutation_score)
+        return final_topic, emotion_label, confidence, mutation_score
 
 class MUTRAnalysisServicer(mutr_analysis_pb2_grpc.AnalysisServiceServicer):
     def __init__(self):
@@ -165,11 +175,31 @@ def download_model():
     return target_path
 
 def serve():
+    # 1. 서버 객체 생성
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    mutr_analysis_pb2_grpc.add_AnalysisServiceServicer_to_server(MUTRAnalysisServicer(), server)
+
+    # 2. 헬스체크 서비스 등록
+    health_servicer = health.HealthServicer()
+    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
+
+    # 초기 상태 설정: 아직 모델 로딩 전이므로 NOT_SERVING
+    health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
+
+    # 3. 포트 설정 및 서버 시작 (이 시점부터 외부에서 핑을 보낼 수 있음)
     server.add_insecure_port(f"[::]:{server_port}")
-    print(f"🚀 MUTR Bllossom AI Engine started on port {server_port}")
+    print(f"🚀 gRPC 서버가 포트 {server_port}에서 시작되었습니다. (모델 로딩 대기 중)")
     server.start()
+
+    # 4. 실제 무거운 모델 엔진 로드 (이게 사용자님의 load_model 역할입니다)
+    # MUTRAnalysisServicer가 생성될 때 내부에서 MUTRModelEngine을 만들며 모델들을 로드합니다.
+    print("⏳ AI 모델 엔진 로딩 시작...")
+    servicer = MUTRAnalysisServicer() 
+    mutr_analysis_pb2_grpc.add_AnalysisServiceServicer_to_server(servicer, server)
+
+    # 5. 로딩 완료 후 상태 변경: 이제 SERVING
+    print("✅ 모든 모델 로드 완료. 서비스 시작!")
+    health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
+
     server.wait_for_termination()
 
 if __name__ == "__main__":

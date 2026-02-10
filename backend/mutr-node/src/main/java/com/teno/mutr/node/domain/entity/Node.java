@@ -2,6 +2,7 @@ package com.teno.mutr.node.domain.entity;
 
 import com.teno.mutr.auth.domain.entity.User;
 import com.teno.mutr.core.domain.BaseTimeEntity;
+import com.teno.mutr.node.domain.vo.AnalysisStatus;
 import com.teno.mutr.node.domain.vo.Coordinate;
 import com.teno.mutr.node.domain.vo.Emotion;
 import com.teno.mutr.node.domain.vo.MutationInfo;
@@ -10,6 +11,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,7 +19,8 @@ import java.util.Map;
 @Table(name = "nodes", indexes = {
         @Index(name = "idx_nodes_parent", columnList = "parent_id"),
         @Index(name = "idx_nodes_root", columnList = "root_id"),
-        @Index(name = "idx_nodes_user", columnList = "user_id")
+        @Index(name = "idx_nodes_user", columnList = "user_id"),
+        @Index(name = "idx_nodes_analysis_status", columnList = "analysis_status")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -55,6 +58,11 @@ public class Node extends BaseTimeEntity {
     @Embedded
     private Coordinate coordinate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "analysis_status", nullable = false, columnDefinition = "varchar(255) default 'PENDING'")
+    @Builder.Default
+    private AnalysisStatus analysisStatus = AnalysisStatus.PENDING;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     @Builder.Default
@@ -62,6 +70,10 @@ public class Node extends BaseTimeEntity {
 
     public Long getParentId() {
         return this.parent != null ? this.parent.getId() : null;
+    }
+
+    public String getParentTopic() {
+        return this.parent != null ? this.parent.getTopic() : null;
     }
 
     /** Anemic Model -> Rich Model
@@ -79,11 +91,33 @@ public class Node extends BaseTimeEntity {
         }
     }
 
-    public void defineIdentity(String topic, MutationInfo mutationInfo, Emotion emotion, Double confidence) {
+    public void beginAnalysis() {
+        if (this.analysisStatus == AnalysisStatus.COMPLETED) {
+            throw new IllegalArgumentException("이미 완료된 분석은 시작할 수 없습니다.");
+        }
+        this.analysisStatus = AnalysisStatus.PROCESSING;
+    }
+
+    public void completeAnalysis(String topic, MutationInfo mutationInfo, Emotion emotion, Double confidence) {
+        if (this.analysisStatus != AnalysisStatus.PROCESSING) {
+            throw new IllegalArgumentException("분석 중인 상태에서만 완료 처리가 가능합니다.");
+        }
         this.topic = topic;
         this.mutationInfo = mutationInfo;
         this.metadata.put("emotion", emotion.getKey());
         this.metadata.put("confidence", String.valueOf(confidence));
+
+        this.analysisStatus = AnalysisStatus.COMPLETED;
+    }
+
+    public void failAnalysis(String reason) {
+        this.analysisStatus = AnalysisStatus.FAILED;
+        this.metadata.put("lastError", reason);
+        this.metadata.put("failedAt", LocalDateTime.now().toString());
+    }
+
+    public void retryAnalysis() {
+        this.analysisStatus = AnalysisStatus.PENDING;
     }
 
     public Emotion getEmotion() {
