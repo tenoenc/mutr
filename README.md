@@ -93,7 +93,7 @@
 
 **Challenge: Serialization Overhead in Polyglot Environment**
 
-Java(Spring Boot) 기반의 웹 서버와 Python 기반의 AI 엔진을 분리하여 운영하는 **Polyglot 아키텍처** 입니다. 두 서버 간에 거대한 텍스트와 고차원 임베딩 벡터(Float Array)를 교환해야 하는데, 기존 REST API(JSON) 방식은 직렬화/역직렬화 과정에서 CPU 부하가 높고 불필요한 텍스트 오버헤드로 인해 실시간 확장에 병목이 되었습니다.
+Java(Spring Boot) 기반의 웹 서버와 Python 기반의 AI 엔진을 분리하여 운영하는 **Polyglot 아키텍처** 입니다. 두 서버 간에 거대한 텍스트와 빈번하게 대량의 텍스트 컨텍스트를 교환해야 하는데, 기존 REST API(JSON) 방식은 직렬화/역직렬화 과정에서 CPU 부하가 높고 불필요한 텍스트 오버헤드로 인해 향후 실시간 확장 시 심각한 병목이 될 것으로 예상되었습니다.
 
 **Solution: gRPC & Protobuf Interface**
 
