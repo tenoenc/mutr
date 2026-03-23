@@ -13,6 +13,20 @@
 
 **Live Demo:** [https://mutr.cloud](https://mutr.cloud)
 
+## Preview
+
+<details>
+<summary><strong>실시간 노드 생성 및 AI 분석</strong></summary>
+<br>
+<video src="https://github.com/user-attachments/assets/1466160c-a868-4cd3-b7d0-4114d1396b6d" width="100%" autoplay muted loop></video>
+</details>
+
+<details>
+<summary><strong>3D 공간 계보 탐색</strong></summary>
+<br>
+<video src="https://github.com/user-attachments/assets/2c4d7164-b0ba-4e1a-92ae-289001b0b890" width="100%" autoplay muted loop></video>
+</details>
+
 ## Key Features
 
 * **Optimized AI Analysis Pipeline**: **gRPC와 Protobuf**를 적용하여 이기종 서버 간 통신 효율을 높이고, **SBERT 및 Llama 3.2** 모델을 연계해 정밀한 의미 유사도와 문맥을 도출합니다.
